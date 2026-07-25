@@ -3,16 +3,31 @@ import api from '../services/api';
 
 export const AuthContext = createContext();
 
+export const isTokenValid = (token) => {
+  if (!token) return false;
+
+  try {
+    const payloadPart = token.split('.')[1];
+    if (!payloadPart) return false;
+    const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+    const normalized = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(normalized));
+    return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
-      // Decode JWT to get user info, or just set true for now
-      // In a real app, you would fetch user profile or decode token payload
-      setUser({ token }); 
+    if (isTokenValid(token)) {
+      setUser({ token });
+    } else if (token) {
+      localStorage.removeItem('token');
     }
     setLoading(false);
   }, []);

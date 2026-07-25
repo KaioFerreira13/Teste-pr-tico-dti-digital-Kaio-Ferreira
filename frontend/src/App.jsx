@@ -31,14 +31,36 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const PublicOnlyRoute = ({ children }) => {
+  const { authenticated, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return <div className="grid min-h-screen place-items-center bg-mist text-ink"><i className="bi bi-arrow-repeat mr-2 animate-spin" />Carregando...</div>;
+  }
+
+  return authenticated ? <Navigate to="/dashboard/geral" replace /> : children;
+};
+
+const SessionRedirect = () => {
+  const { authenticated, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return <div className="grid min-h-screen place-items-center bg-mist text-ink"><i className="bi bi-arrow-repeat mr-2 animate-spin" />Carregando...</div>;
+  }
+
+  return <Navigate to={authenticated ? '/dashboard/geral' : '/login'} replace />;
+};
+
 function App() {
   return (
     <AuthProvider>
       <HangarProvider>
         <Router>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/" element={<SessionRedirect />} />
+          <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
+          <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
+          <Route path="/dashboard" element={<Navigate to="/dashboard/geral" replace />} />
           <Route
             path="/dashboard/geral" 
             element={
@@ -143,7 +165,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<SessionRedirect />} />
         </Routes>
         </Router>
       </HangarProvider>

@@ -7,8 +7,8 @@ Este documento descreve todos os testes automatizados do projeto.
 | Camada | Tecnologia | Suites | Casos |
 | --- | --- | ---: | ---: |
 | Backend | JUnit 5 e Mockito | 6 | 44 |
-| Frontend | Vitest e Testing Library | 2 | 10 |
-| Total | - | 8 | 54 |
+| Frontend | Vitest e Testing Library | 3 | 14 |
+| Total | - | 9 | 58 |
 
 Os testes do backend sao unitarios e utilizam mocks dos repositorios. Eles nao
 iniciam o Spring Boot e nao leem ou alteram o MongoDB configurado na aplicacao.
@@ -140,6 +140,17 @@ Arquivo:
 | BE-ROT-04 | Planejar sem entregas | O drone possuia uma rota anterior, mas recebe lista vazia. | Limpa destinos, distancia, status e horarios da rota. |
 
 ## Frontend
+
+### AuthContext.test.jsx
+
+Arquivo: `frontend/src/context/AuthContext.test.jsx`
+
+| ID | Caso | Cenario | Resultado esperado |
+| --- | --- | --- | --- |
+| FE-AUT-01 | Aceitar sessao valida | O JWT possui expiracao futura. | Considera o token valido e permite abrir a dashboard. |
+| FE-AUT-02 | Rejeitar sessao expirada | O JWT possui expiracao anterior ao horario atual. | Considera o token invalido e direciona para o login. |
+| FE-AUT-03 | Rejeitar token sem expiracao | O JWT nao possui o campo `exp`. | Considera o token invalido. |
+| FE-AUT-04 | Rejeitar token malformado | O valor esta vazio, sem payload ou com JSON invalido. | Considera o token invalido sem lancar erro. |
 
 ### RemainingTime.test.jsx
 
