@@ -3,6 +3,9 @@ package com.dtidigital.fretesdrones.controller;
 import com.dtidigital.fretesdrones.dto.DroneRequest;
 import com.dtidigital.fretesdrones.dto.DroneResponse;
 import com.dtidigital.fretesdrones.model.Drone;
+import com.dtidigital.fretesdrones.model.DroneStatus;
+import com.dtidigital.fretesdrones.model.DeliveryStatus;
+import com.dtidigital.fretesdrones.model.Entrega;
 import com.dtidigital.fretesdrones.model.Hangar;
 import com.dtidigital.fretesdrones.model.Modelo;
 import com.dtidigital.fretesdrones.model.User;
@@ -10,6 +13,10 @@ import com.dtidigital.fretesdrones.repository.DroneRepository;
 import com.dtidigital.fretesdrones.repository.HangarRepository;
 import com.dtidigital.fretesdrones.repository.ModeloRepository;
 import com.dtidigital.fretesdrones.repository.UserRepository;
+import com.dtidigital.fretesdrones.repository.EntregaRepository;
+import com.dtidigital.fretesdrones.service.DeliveryAllocationService;
+import com.dtidigital.fretesdrones.service.RoutePlanningService;
+import com.dtidigital.fretesdrones.model.RouteStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -25,12 +32,18 @@ public class DroneController {
     private final HangarRepository hangarRepository;
     private final ModeloRepository modeloRepository;
     private final UserRepository userRepository;
+    private final EntregaRepository entregaRepository;
+    private final DeliveryAllocationService allocationService;
+    private final RoutePlanningService routePlanningService;
 
-    public DroneController(DroneRepository droneRepository, HangarRepository hangarRepository, ModeloRepository modeloRepository, UserRepository userRepository) {
+    public DroneController(DroneRepository droneRepository, HangarRepository hangarRepository, ModeloRepository modeloRepository, UserRepository userRepository, EntregaRepository entregaRepository, DeliveryAllocationService allocationService, RoutePlanningService routePlanningService) {
         this.droneRepository = droneRepository;
         this.hangarRepository = hangarRepository;
         this.modeloRepository = modeloRepository;
         this.userRepository = userRepository;
+        this.entregaRepository = entregaRepository;
+        this.allocationService = allocationService;
+        this.routePlanningService = routePlanningService;
     }
 
     @GetMapping("/me")
@@ -111,6 +124,67 @@ public class DroneController {
         ));
     }
 
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<?> updateStatus(@PathVariable String id, @RequestBody StatusRequest request, Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        Drone drone = droneRepository.findById(id).orElse(null);
+        if (drone == null) return ResponseEntity.notFound().build();
+        if (!user.getId().equals(drone.getUserId())) return ResponseEntity.status(403).body("Voce nao pode alterar este drone.");
+        try {
+            drone.setStatus(DroneStatus.valueOf(request.status().trim().toUpperCase()));
+        } catch (Exception exception) {
+            return ResponseEntity.badRequest().body("Status de drone invalido.");
+        }
+        droneRepository.save(drone);
+        if (drone.getStatus() == DroneStatus.DISPONIVEL) {
+            allocationService.allocateConfirmed(user.getId(), drone.getHangarId());
+        }
+        return ResponseEntity.ok(toResponse(droneRepository.findById(id).orElse(drone)));
+    }
+
+    @DeleteMapping("/{droneId}/entregas/{deliveryId}")
+    public ResponseEntity<?> unassignDelivery(@PathVariable String droneId, @PathVariable String deliveryId, Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        Drone drone = droneRepository.findById(droneId).orElse(null);
+        Entrega delivery = entregaRepository.findById(deliveryId).orElse(null);
+        if (drone == null || delivery == null) return ResponseEntity.notFound().build();
+        if (!user.getId().equals(drone.getUserId()) || !user.getId().equals(delivery.getUserId()) || !droneId.equals(delivery.getDroneId())) {
+            return ResponseEntity.status(403).body("Entrega ou drone invalido para esta operacao.");
+        }
+
+        delivery.setDroneId(null);
+        delivery.setStatus(DeliveryStatus.AGUARDANDO_CONFIRMACAO);
+        entregaRepository.save(delivery);
+
+        double remainingLoad = entregaRepository.findByUserId(user.getId()).stream()
+                .filter(item -> droneId.equals(item.getDroneId()) && item.getStatus() == DeliveryStatus.EM_DESPACHO)
+                .mapToDouble(item -> item.getWeight() == null ? 0.0 : item.getWeight()).sum();
+        drone.setCurrentLoad(remainingLoad);
+        if (remainingLoad == 0.0 && drone.getStatus() == DroneStatus.EM_DESPACHO) drone.setStatus(DroneStatus.DISPONIVEL);
+        droneRepository.save(drone);
+        List<Entrega> remainingDeliveries = entregaRepository.findByUserId(user.getId()).stream()
+                .filter(item -> droneId.equals(item.getDroneId()) && item.getStatus() == DeliveryStatus.EM_DESPACHO).toList();
+        if (remainingDeliveries.isEmpty()) routePlanningService.clear(drone);
+        else routePlanningService.plan(drone, remainingDeliveries);
+        if (drone.getStatus() == DroneStatus.DISPONIVEL) {
+            allocationService.allocateConfirmed(user.getId(), drone.getHangarId());
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/iniciar-frete")
+    public ResponseEntity<?> startFreight(@PathVariable String id, Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        Drone drone = droneRepository.findById(id).orElse(null);
+        if (drone == null) return ResponseEntity.notFound().build();
+        if (!user.getId().equals(drone.getUserId())) return ResponseEntity.status(403).body("Voce nao pode alterar este drone.");
+        if (drone.getStatus() != DroneStatus.EM_DESPACHO || drone.getRouteStatus() != RouteStatus.AGUARDANDO_INICIO) {
+            return ResponseEntity.badRequest().body("O drone nao possui um frete aguardando inicio.");
+        }
+        drone.setRouteStatus(RouteStatus.EM_ANDAMENTO);
+        return ResponseEntity.ok(toResponse(droneRepository.save(drone)));
+    }
+
     private String validateRequest(DroneRequest request, String userId, String currentId) {
         if (request.getName() == null || request.getName().isBlank()) {
             return "Drone name is required";
@@ -161,7 +235,10 @@ public class DroneController {
                 drone.getHangarId(),
                 drone.getModelId(),
                 drone.getStatus(),
-                drone.getCurrentLoad()
+                drone.getCurrentLoad(),
+                drone.getRouteDeliveryIds(),
+                drone.getRouteDistance(),
+                drone.getRouteStatus()
         );
     }
 
@@ -200,4 +277,6 @@ public class DroneController {
             return name;
         }
     }
+
+    public record StatusRequest(String status) {}
 }

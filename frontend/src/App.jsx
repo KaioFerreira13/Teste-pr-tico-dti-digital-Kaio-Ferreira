@@ -5,7 +5,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Hangars from './pages/Hangars';
+import GerenciarHangars from './pages/GerenciarHangars';
 import Drones from './pages/Drones';
+import GerenciarDrones from './pages/GerenciarDrones';
 import Modelos from './pages/Modelos';
 import Entregas from './pages/Entregas';
 import GerenciarEntregas from './pages/GerenciarEntregas';
@@ -54,11 +56,31 @@ function App() {
             }
           />
           <Route
+            path="/hangars/gerenciar"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <GerenciarHangars />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/drones"
             element={
               <ProtectedRoute>
                 <AppLayout>
                   <Drones />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/drones/gerenciar"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <GerenciarDrones />
                 </AppLayout>
               </ProtectedRoute>
             }

@@ -14,6 +14,7 @@ import com.dtidigital.fretesdrones.repository.HangarRepository;
 import com.dtidigital.fretesdrones.repository.EntregaRepository;
 import com.dtidigital.fretesdrones.repository.UserRepository;
 import com.dtidigital.fretesdrones.repository.DroneRepository;
+import com.dtidigital.fretesdrones.service.DeliveryAllocationService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -32,12 +33,14 @@ public class EntregaController {
     private final UserRepository userRepository;
     private final HangarRepository hangarRepository;
     private final DroneRepository droneRepository;
+    private final DeliveryAllocationService allocationService;
 
-    public EntregaController(EntregaRepository entregaRepository, UserRepository userRepository, HangarRepository hangarRepository, DroneRepository droneRepository) {
+    public EntregaController(EntregaRepository entregaRepository, UserRepository userRepository, HangarRepository hangarRepository, DroneRepository droneRepository, DeliveryAllocationService allocationService) {
         this.entregaRepository = entregaRepository;
         this.userRepository = userRepository;
         this.hangarRepository = hangarRepository;
         this.droneRepository = droneRepository;
+        this.allocationService = allocationService;
     }
 
     @GetMapping("/me")
@@ -103,8 +106,8 @@ public class EntregaController {
     public ResponseEntity<?> confirmDispatch(@PathVariable String hangarId, @RequestBody ConfirmRequest request, Authentication authentication) {
         User user = getCurrentUser(authentication);
         getOwnedHangar(hangarId, user);
-        if (request == null || request.movements() == null) {
-            return ResponseEntity.badRequest().body("Nenhuma movimentacao foi enviada.");
+        if (request == null || request.deliveryIds() == null || request.deliveryIds().isEmpty()) {
+            return ResponseEntity.badRequest().body("Nenhuma entrega foi enviada para confirmacao.");
         }
 
         List<Drone> drones = droneRepository.findByUserId(user.getId()).stream()
@@ -116,35 +119,22 @@ public class EntregaController {
         if (hasInviableDelivery) {
             return ResponseEntity.badRequest().body("Trate todas as entregas inviaveis antes de confirmar a movimentacao.");
         }
-        Map<String, Drone> dronesById = drones.stream().collect(java.util.stream.Collectors.toMap(Drone::getId, drone -> drone));
-        Map<String, Double> loads = new HashMap<>();
-        drones.forEach(drone -> loads.put(drone.getId(), drone.getCurrentLoad() == null ? 0.0 : drone.getCurrentLoad()));
-
-        for (Movement movement : request.movements()) {
-            Entrega delivery = entregaRepository.findById(movement.deliveryId()).orElse(null);
-            Drone drone = dronesById.get(movement.droneId());
+        for (String deliveryId : request.deliveryIds()) {
+            Entrega delivery = entregaRepository.findById(deliveryId).orElse(null);
             if (delivery == null || !user.getId().equals(delivery.getUserId()) || !hangarId.equals(delivery.getHangarId())) {
-                return ResponseEntity.badRequest().body("A entrega informada nao pertence ao usuario ou ao hangar selecionado.");
+                return ResponseEntity.badRequest().body("Uma entrega informada nao pertence ao usuario ou ao hangar selecionado.");
             }
-            if (drone == null) {
-                return ResponseEntity.badRequest().body("O drone informado nao pertence ao hangar selecionado.");
-            }
-            if (delivery.getStatus() != DeliveryStatus.AGUARDANDO_CONFIRMACAO && delivery.getStatus() != DeliveryStatus.NA_FILA) {
+            if (delivery.getStatus() != null
+                    && delivery.getStatus() != DeliveryStatus.AGUARDANDO_CONFIRMACAO
+                    && delivery.getStatus() != DeliveryStatus.CONFIRMADA
+                    && delivery.getStatus() != DeliveryStatus.NA_FILA) {
                 return ResponseEntity.badRequest().body("A entrega ja foi tratada e nao pode ser movimentada novamente.");
             }
-            if (delivery.getWeight() == null || drone.getMaxWeight() == null || loads.get(drone.getId()) + delivery.getWeight() > drone.getMaxWeight()) {
-                return ResponseEntity.badRequest().body("A capacidade do drone nao comporta esta movimentacao.");
-            }
-            loads.put(drone.getId(), loads.get(drone.getId()) + delivery.getWeight());
-            delivery.setStatus(DeliveryStatus.EM_DESPACHO);
-            delivery.setDroneId(drone.getId());
+            delivery.setStatus(DeliveryStatus.CONFIRMADA);
+            delivery.setDroneId(null);
             entregaRepository.save(delivery);
-            drone.setStatus(DroneStatus.EM_DESPACHO);
         }
-        drones.forEach(drone -> {
-            drone.setCurrentLoad(loads.get(drone.getId()));
-            droneRepository.save(drone);
-        });
+        allocationService.allocateConfirmed(user.getId(), hangarId);
         return ResponseEntity.ok(buildManagement(hangarId, user));
     }
 
@@ -282,11 +272,10 @@ public class EntregaController {
     }
 
     private DroneResponse toDroneResponse(Drone drone) {
-        return new DroneResponse(drone.getId(), drone.getName(), drone.getAutonomy(), drone.getMaxWeight(), drone.getAverageSpeed(), drone.getHangarId(), drone.getModelId(), drone.getStatus() == null ? DroneStatus.DISPONIVEL : drone.getStatus(), drone.getCurrentLoad() == null ? 0.0 : drone.getCurrentLoad());
+        return new DroneResponse(drone.getId(), drone.getName(), drone.getAutonomy(), drone.getMaxWeight(), drone.getAverageSpeed(), drone.getHangarId(), drone.getModelId(), drone.getStatus() == null ? DroneStatus.DISPONIVEL : drone.getStatus(), drone.getCurrentLoad() == null ? 0.0 : drone.getCurrentLoad(), drone.getRouteDeliveryIds(), drone.getRouteDistance(), drone.getRouteStatus());
     }
 
     public record ManagementResponse(List<EntregaResponse> deliveries, List<DroneResponse> drones) {}
-    public record ConfirmRequest(List<Movement> movements) {}
-    public record Movement(String deliveryId, String droneId) {}
+    public record ConfirmRequest(List<String> deliveryIds) {}
     public record SplitRequest(List<Double> weights) {}
 }

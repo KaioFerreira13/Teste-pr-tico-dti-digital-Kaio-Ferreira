@@ -1,17 +1,47 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard' },
-  { to: '/hangars', label: 'Hangares' },
-  { to: '/drones', label: 'Drones' },
-  { to: '/modelos', label: 'Modelos' },
+  { to: '/modelos', label: 'Modelos' }
 ];
+
+const submenuLinkStyle = ({ isActive }) => ({
+  padding: '10px 14px',
+  borderRadius: '12px',
+  color: 'white',
+  textDecoration: 'none',
+  background: isActive ? 'rgba(15, 91, 215, 0.95)' : 'rgba(255,255,255,0.04)',
+  border: isActive ? 'none' : '1px solid rgba(255,255,255,0.08)'
+});
+
+const DropdownButton = ({ label, open, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    style={{
+      padding: '12px 14px',
+      borderRadius: '12px',
+      color: 'white',
+      textAlign: 'left',
+      background: 'transparent',
+      border: '1px solid rgba(255,255,255,0.08)',
+      cursor: 'pointer',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    }}
+  >
+    <span>{label}</span>
+    <span style={{ opacity: 0.8 }}>{open ? 'v' : '>'}</span>
+  </button>
+);
 
 const AppLayout = ({ children }) => {
   const { logout } = useContext(AuthContext);
+  const [hangarsOpen, setHangarsOpen] = useState(true);
+  const [dronesOpen, setDronesOpen] = useState(true);
   const [deliveriesOpen, setDeliveriesOpen] = useState(true);
 
   return (
@@ -42,54 +72,31 @@ const AppLayout = ({ children }) => {
             ))}
 
             <div style={{ display: 'grid', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setDeliveriesOpen((current) => !current)}
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: '12px',
-                  color: 'white',
-                  textAlign: 'left',
-                  background: 'transparent',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
-                <span>Entregas</span>
-                <span style={{ opacity: 0.8 }}>{deliveriesOpen ? '▾' : '▸'}</span>
-              </button>
+              <DropdownButton label="Hangares" open={hangarsOpen} onClick={() => setHangarsOpen((current) => !current)} />
+              {hangarsOpen && (
+                <div style={{ display: 'grid', gap: '8px', paddingLeft: '14px' }}>
+                  <NavLink to="/hangars" end style={submenuLinkStyle}>Cadastrar hangares</NavLink>
+                  <NavLink to="/hangars/gerenciar" style={submenuLinkStyle}>Gerenciar hangares</NavLink>
+                </div>
+              )}
+            </div>
 
+            <div style={{ display: 'grid', gap: '8px' }}>
+              <DropdownButton label="Drones" open={dronesOpen} onClick={() => setDronesOpen((current) => !current)} />
+              {dronesOpen && (
+                <div style={{ display: 'grid', gap: '8px', paddingLeft: '14px' }}>
+                  <NavLink to="/drones" end style={submenuLinkStyle}>Cadastrar drones</NavLink>
+                  <NavLink to="/drones/gerenciar" style={submenuLinkStyle}>Gerenciar drones</NavLink>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gap: '8px' }}>
+              <DropdownButton label="Entregas" open={deliveriesOpen} onClick={() => setDeliveriesOpen((current) => !current)} />
               {deliveriesOpen && (
                 <div style={{ display: 'grid', gap: '8px', paddingLeft: '14px' }}>
-                  <NavLink
-                    to="/entregas/cadastrar"
-                    style={({ isActive }) => ({
-                      padding: '10px 14px',
-                      borderRadius: '12px',
-                      color: 'white',
-                      textDecoration: 'none',
-                      background: isActive ? 'rgba(15, 91, 215, 0.95)' : 'rgba(255,255,255,0.04)',
-                      border: isActive ? 'none' : '1px solid rgba(255,255,255,0.08)'
-                    })}
-                  >
-                    Cadastrar entregas
-                  </NavLink>
-                  <NavLink
-                    to="/entregas/gerenciar"
-                    style={({ isActive }) => ({
-                      padding: '10px 14px',
-                      borderRadius: '12px',
-                      color: 'white',
-                      textDecoration: 'none',
-                      background: isActive ? 'rgba(15, 91, 215, 0.95)' : 'rgba(255,255,255,0.04)',
-                      border: isActive ? 'none' : '1px solid rgba(255,255,255,0.08)'
-                    })}
-                  >
-                    Gerenciar entregas
-                  </NavLink>
+                  <NavLink to="/entregas/cadastrar" style={submenuLinkStyle}>Cadastrar entregas</NavLink>
+                  <NavLink to="/entregas/gerenciar" style={submenuLinkStyle}>Gerenciar entregas</NavLink>
                 </div>
               )}
             </div>

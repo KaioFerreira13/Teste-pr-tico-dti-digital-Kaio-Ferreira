@@ -3,14 +3,14 @@ import api from '../services/api';
 
 const deliveryLabels = {
   AGUARDANDO_CONFIRMACAO: 'Aguardando confirmação',
-  NA_FILA: 'Na fila',
+  CONFIRMADA: 'Confirmada',
   EM_DESPACHO: 'Em despacho',
   ENTREGUE: 'Entregue',
   INVIAVEL: 'Inviável'
 };
 
 const statusColors = {
-  NA_FILA: '#b7791f',
+  CONFIRMADA: '#b7791f',
   EM_DESPACHO: '#1769aa',
   ENTREGUE: '#2f855a',
   INVIAVEL: '#c53030',
@@ -39,7 +39,9 @@ const GerenciarEntregas = () => {
     setError('');
     try {
       const response = await api.get(`/entregas/gerenciamento/${hangarId}`);
-      setDeliveries((response.data.deliveries || []).filter((delivery) => delivery.status !== 'EM_DESPACHO'));
+      setDeliveries((response.data.deliveries || [])
+        .filter((delivery) => delivery.status !== 'EM_DESPACHO')
+        .map((delivery) => delivery.status === 'NA_FILA' ? { ...delivery, status: 'CONFIRMADA' } : delivery));
       setDrones(response.data.drones || []);
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data || 'Nao foi possivel carregar o hangar.');
@@ -62,37 +64,21 @@ const GerenciarEntregas = () => {
   };
 
   const allocatePendingDeliveries = (sourceDeliveries, sourceDrones) => {
-    const loads = Object.fromEntries(sourceDrones.map((drone) => [drone.id, drone.currentLoad || 0]));
-    const alreadyAssignedIds = new Set(sourceDeliveries.filter((delivery) => delivery.status === 'EM_DESPACHO' && delivery.droneId).map((delivery) => delivery.droneId));
-    const candidateDrones = sourceDrones.filter((drone) => !drone.status || drone.status === 'DISPONIVEL' || alreadyAssignedIds.has(drone.id));
-    const assignedIds = new Set(alreadyAssignedIds);
     const pending = sourceDeliveries
       .filter((delivery) => delivery.status === 'AGUARDANDO_CONFIRMACAO')
       .sort((a, b) => ({ BAIXA: 1, MEDIA: 2, ALTA: 3 }[b.priority] || 0) - ({ BAIXA: 1, MEDIA: 2, ALTA: 3 }[a.priority] || 0));
     const nextDeliveries = sourceDeliveries.map((delivery) => ({ ...delivery }));
 
     pending.forEach((delivery) => {
-      const fits = (drone) => delivery.weight <= drone.maxWeight && loads[drone.id] + delivery.weight <= drone.maxWeight;
-      const byBestFit = (a, b) => (a.maxWeight - loads[a.id] - delivery.weight) - (b.maxWeight - loads[b.id] - delivery.weight);
-      const idleBest = candidateDrones.filter((drone) => !assignedIds.has(drone.id)).filter(fits).sort(byBestFit)[0];
-      const assignedBest = candidateDrones.filter((drone) => assignedIds.has(drone.id)).filter(fits).sort(byBestFit)[0];
-      const best = idleBest || assignedBest;
       const canEverFit = sourceDrones.some((drone) => delivery.weight <= drone.maxWeight);
       const target = nextDeliveries.find((item) => item.id === delivery.id);
-      if (best) {
-        loads[best.id] += delivery.weight;
-        assignedIds.add(best.id);
-        target.status = 'EM_DESPACHO';
-        target.droneId = best.id;
-      } else {
-        target.status = canEverFit ? 'NA_FILA' : 'INVIAVEL';
-        target.droneId = null;
-      }
+      target.status = canEverFit ? 'CONFIRMADA' : 'INVIAVEL';
+      target.droneId = null;
     });
 
     return {
       deliveries: nextDeliveries,
-      drones: sourceDrones.map((drone) => ({ ...drone, currentLoad: loads[drone.id], status: assignedIds.has(drone.id) ? 'EM_DESPACHO' : drone.status }))
+      drones: sourceDrones
     };
   };
 
@@ -114,9 +100,11 @@ const GerenciarEntregas = () => {
     setLoading(true);
     setError('');
     try {
-      const movements = deliveries.filter((delivery) => delivery.status === 'EM_DESPACHO' && delivery.droneId).map((delivery) => ({ deliveryId: delivery.id, droneId: delivery.droneId }));
-      const response = await api.post(`/entregas/gerenciamento/${selectedHangar}/confirmar`, { movements });
-      const confirmedDeliveries = (response.data.deliveries || []).filter((delivery) => delivery.status !== 'EM_DESPACHO');
+      const deliveryIds = deliveries.filter((delivery) => delivery.status === 'CONFIRMADA').map((delivery) => delivery.id);
+      const response = await api.post(`/entregas/gerenciamento/${selectedHangar}/confirmar`, { deliveryIds });
+      const confirmedDeliveries = (response.data.deliveries || [])
+        .filter((delivery) => delivery.status !== 'EM_DESPACHO')
+        .map((delivery) => delivery.status === 'NA_FILA' ? { ...delivery, status: 'CONFIRMADA' } : delivery);
       setDeliveries(confirmedDeliveries);
       setDrones(response.data.drones || []);
       setPrepared(false);
@@ -181,7 +169,9 @@ const GerenciarEntregas = () => {
 
   const grouped = {
     AGUARDANDO_CONFIRMACAO: deliveries.filter((delivery) => delivery.status === 'AGUARDANDO_CONFIRMACAO'),
-    NA_FILA: deliveries.filter((delivery) => delivery.status === 'NA_FILA'),
+    CONFIRMADA: deliveries
+      .filter((delivery) => delivery.status === 'CONFIRMADA')
+      .sort((a, b) => ({ BAIXA: 1, MEDIA: 2, ALTA: 3 }[b.priority] || 0) - ({ BAIXA: 1, MEDIA: 2, ALTA: 3 }[a.priority] || 0)),
     EM_DESPACHO: deliveries.filter((delivery) => delivery.status === 'EM_DESPACHO'),
     INVIAVEL: deliveries.filter((delivery) => delivery.status === 'INVIAVEL')
   };
@@ -231,10 +221,12 @@ const GerenciarEntregas = () => {
             {!drones.length && <span>Nenhum drone cadastrado neste hangar.</span>}
           </div>
         </div>
-        {!prepared && renderColumn('Aguardando confirmação', 'AGUARDANDO_CONFIRMACAO', 'Entregas ainda sem tratativa. Prepare o despacho para fazer a alocação localmente.')}
+        {!prepared && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
+          {renderColumn('Aguardando confirmação', 'AGUARDANDO_CONFIRMACAO', 'Entregas ainda sem tratativa. Prepare o despacho para enviá-las à fila.')}
+          {renderColumn('Fila de confirmadas', 'CONFIRMADA', 'Pedidos confirmados aguardando um drone disponível, ordenados por prioridade.')}
+        </div>}
         {prepared && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
-          {renderColumn('Na fila', 'NA_FILA', 'A entrega cabe em algum drone, mas não há capacidade disponível no momento.')}
-          {renderColumn('Em despacho', 'EM_DESPACHO', 'Entregas designadas aos drones nesta prévia.')}
+          {renderColumn('Fila de confirmadas', 'CONFIRMADA', 'Pedidos prontos para confirmação, ordenados por prioridade.')}
           {renderColumn('Inviável', 'INVIAVEL', 'Nenhum drone deste hangar possui capacidade para o peso da entrega.')}
         </div>}
       </>}
