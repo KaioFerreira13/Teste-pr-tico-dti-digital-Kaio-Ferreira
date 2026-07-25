@@ -1,6 +1,7 @@
 package com.dtidigital.fretesdrones.dto;
 
 import com.dtidigital.fretesdrones.model.DeliveryPriority;
+import com.dtidigital.fretesdrones.model.DeliveryStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,4 +17,6 @@ public class EntregaResponse {
     private DeliveryPriority priority;
     private String recipientName;
     private String hangarId;
+    private DeliveryStatus status;
+    private String droneId;
 }

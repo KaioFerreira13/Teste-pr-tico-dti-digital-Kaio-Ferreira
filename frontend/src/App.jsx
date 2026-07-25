@@ -8,6 +8,7 @@ import Hangars from './pages/Hangars';
 import Drones from './pages/Drones';
 import Modelos from './pages/Modelos';
 import Entregas from './pages/Entregas';
+import GerenciarEntregas from './pages/GerenciarEntregas';
 import AppLayout from './components/AppLayout';
 import './App.css';
 
@@ -74,10 +75,24 @@ function App() {
           />
           <Route
             path="/entregas"
+            element={<Navigate to="/entregas/cadastrar" replace />}
+          />
+          <Route
+            path="/entregas/cadastrar"
             element={
               <ProtectedRoute>
                 <AppLayout>
                   <Entregas />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/entregas/gerenciar"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <GerenciarEntregas />
                 </AppLayout>
               </ProtectedRoute>
             }

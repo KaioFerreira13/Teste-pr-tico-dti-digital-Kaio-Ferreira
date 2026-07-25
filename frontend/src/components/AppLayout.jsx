@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
@@ -8,11 +8,11 @@ const navItems = [
   { to: '/hangars', label: 'Hangares' },
   { to: '/drones', label: 'Drones' },
   { to: '/modelos', label: 'Modelos' },
-  { to: '/entregas', label: 'Entregas' }
 ];
 
 const AppLayout = ({ children }) => {
   const { logout } = useContext(AuthContext);
+  const [deliveriesOpen, setDeliveriesOpen] = useState(true);
 
   return (
     <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '260px 1fr', background: '#f4f7fb' }}>
@@ -40,6 +40,59 @@ const AppLayout = ({ children }) => {
                 {item.label}
               </NavLink>
             ))}
+
+            <div style={{ display: 'grid', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setDeliveriesOpen((current) => !current)}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  color: 'white',
+                  textAlign: 'left',
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <span>Entregas</span>
+                <span style={{ opacity: 0.8 }}>{deliveriesOpen ? '▾' : '▸'}</span>
+              </button>
+
+              {deliveriesOpen && (
+                <div style={{ display: 'grid', gap: '8px', paddingLeft: '14px' }}>
+                  <NavLink
+                    to="/entregas/cadastrar"
+                    style={({ isActive }) => ({
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      color: 'white',
+                      textDecoration: 'none',
+                      background: isActive ? 'rgba(15, 91, 215, 0.95)' : 'rgba(255,255,255,0.04)',
+                      border: isActive ? 'none' : '1px solid rgba(255,255,255,0.08)'
+                    })}
+                  >
+                    Cadastrar entregas
+                  </NavLink>
+                  <NavLink
+                    to="/entregas/gerenciar"
+                    style={({ isActive }) => ({
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      color: 'white',
+                      textDecoration: 'none',
+                      background: isActive ? 'rgba(15, 91, 215, 0.95)' : 'rgba(255,255,255,0.04)',
+                      border: isActive ? 'none' : '1px solid rgba(255,255,255,0.08)'
+                    })}
+                  >
+                    Gerenciar entregas
+                  </NavLink>
+                </div>
+              )}
+            </div>
           </nav>
         </div>
 

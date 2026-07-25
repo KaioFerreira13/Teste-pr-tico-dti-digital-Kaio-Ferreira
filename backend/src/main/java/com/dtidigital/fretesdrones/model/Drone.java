@@ -25,6 +25,8 @@ public class Drone {
     private String hangarId;
     private String modelId;
     private String userId;
+    private DroneStatus status;
+    private Double currentLoad;
 
     public Drone(String name, Double autonomy, Double maxWeight, Double averageSpeed, String hangarId, String modelId, String userId) {
         this.name = name;
@@ -34,5 +36,7 @@ public class Drone {
         this.hangarId = hangarId;
         this.modelId = modelId;
         this.userId = userId;
+        this.status = DroneStatus.DISPONIVEL;
+        this.currentLoad = 0.0;
     }
 }

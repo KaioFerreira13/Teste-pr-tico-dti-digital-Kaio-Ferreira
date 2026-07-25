@@ -25,6 +25,8 @@ public class Entrega {
     private String recipientName;
     private String hangarId;
     private String userId;
+    private DeliveryStatus status;
+    private String droneId;
 
     public Entrega(Double weight, Integer destinationX, Integer destinationY, DeliveryPriority priority, String recipientName, String hangarId, String userId) {
         this.weight = weight;
@@ -34,5 +36,6 @@ public class Entrega {
         this.recipientName = recipientName;
         this.hangarId = hangarId;
         this.userId = userId;
+        this.status = DeliveryStatus.AGUARDANDO_CONFIRMACAO;
     }
 }

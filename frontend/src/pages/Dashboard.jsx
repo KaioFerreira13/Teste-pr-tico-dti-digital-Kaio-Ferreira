@@ -48,7 +48,7 @@ const Dashboard = () => {
             <h1 style={{ margin: 0 }}>Dashboard</h1>
             <p style={{ margin: '8px 0 0', color: '#58708d' }}>Visão geral das suas entregas com dados reais do sistema.</p>
           </div>
-          <Link to="/entregas" style={{ padding: '10px 16px', borderRadius: '10px', background: '#0f5bd7', color: 'white', textDecoration: 'none' }}>
+          <Link to="/entregas/cadastrar" style={{ padding: '10px 16px', borderRadius: '10px', background: '#0f5bd7', color: 'white', textDecoration: 'none' }}>
             Nova entrega
           </Link>
         </div>
@@ -91,7 +91,7 @@ const Dashboard = () => {
           <aside style={{ background: 'white', padding: '24px', borderRadius: '18px', boxShadow: '0 10px 30px rgba(16,35,61,0.08)' }}>
             <h2 style={{ marginTop: 0 }}>Atalhos</h2>
             <p style={{ color: '#58708d' }}>Use a página de entregas para cadastrar, editar e excluir registros.</p>
-            <Link to="/entregas" style={{ display: 'inline-block', marginTop: '10px', padding: '10px 16px', borderRadius: '10px', background: '#10233d', color: 'white', textDecoration: 'none' }}>
+            <Link to="/entregas/cadastrar" style={{ display: 'inline-block', marginTop: '10px', padding: '10px 16px', borderRadius: '10px', background: '#10233d', color: 'white', textDecoration: 'none' }}>
               Abrir página de entregas
             </Link>
           </aside>

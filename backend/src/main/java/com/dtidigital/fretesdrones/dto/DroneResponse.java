@@ -1,5 +1,7 @@
 package com.dtidigital.fretesdrones.dto;
 
+import com.dtidigital.fretesdrones.model.DroneStatus;
+
 public class DroneResponse {
     private String id;
     private String name;
@@ -8,8 +10,10 @@ public class DroneResponse {
     private Double averageSpeed;
     private String hangarId;
     private String modelId;
+    private DroneStatus status;
+    private Double currentLoad;
 
-    public DroneResponse(String id, String name, Double autonomy, Double maxWeight, Double averageSpeed, String hangarId, String modelId) {
+    public DroneResponse(String id, String name, Double autonomy, Double maxWeight, Double averageSpeed, String hangarId, String modelId, DroneStatus status, Double currentLoad) {
         this.id = id;
         this.name = name;
         this.autonomy = autonomy;
@@ -17,6 +21,8 @@ public class DroneResponse {
         this.averageSpeed = averageSpeed;
         this.hangarId = hangarId;
         this.modelId = modelId;
+        this.status = status;
+        this.currentLoad = currentLoad;
     }
 
     public String getId() {
@@ -46,4 +52,7 @@ public class DroneResponse {
     public String getModelId() {
         return modelId;
     }
+
+    public DroneStatus getStatus() { return status; }
+    public Double getCurrentLoad() { return currentLoad; }
 }

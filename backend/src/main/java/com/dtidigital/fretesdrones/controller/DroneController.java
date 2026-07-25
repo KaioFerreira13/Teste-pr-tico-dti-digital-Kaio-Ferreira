@@ -159,7 +159,9 @@ public class DroneController {
                 drone.getMaxWeight(),
                 drone.getAverageSpeed(),
                 drone.getHangarId(),
-                drone.getModelId()
+                drone.getModelId(),
+                drone.getStatus(),
+                drone.getCurrentLoad()
         );
     }
 
