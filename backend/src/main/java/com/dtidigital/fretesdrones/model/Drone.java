@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.List;
+import java.time.Instant;
 
 @Document(collection = "drones")
 @Getter
@@ -31,6 +32,8 @@ public class Drone {
     private List<String> routeDeliveryIds;
     private Double routeDistance;
     private RouteStatus routeStatus;
+    private Instant routeStartedAt;
+    private Instant routeEstimatedCompletionAt;
 
     public Drone(String name, Double autonomy, Double maxWeight, Double averageSpeed, String hangarId, String modelId, String userId) {
         this.name = name;

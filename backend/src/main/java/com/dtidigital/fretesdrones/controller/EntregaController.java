@@ -105,7 +105,7 @@ public class EntregaController {
     @PostMapping("/gerenciamento/{hangarId}/confirmar")
     public ResponseEntity<?> confirmDispatch(@PathVariable String hangarId, @RequestBody ConfirmRequest request, Authentication authentication) {
         User user = getCurrentUser(authentication);
-        getOwnedHangar(hangarId, user);
+        Hangar selectedHangar = getOwnedHangar(hangarId, user);
         if (request == null || request.deliveryIds() == null || request.deliveryIds().isEmpty()) {
             return ResponseEntity.badRequest().body("Nenhuma entrega foi enviada para confirmacao.");
         }
@@ -115,7 +115,19 @@ public class EntregaController {
         boolean hasInviableDelivery = entregaRepository.findByUserId(user.getId()).stream()
                 .filter(delivery -> hangarId.equals(delivery.getHangarId()))
                 .filter(delivery -> delivery.getStatus() == null || delivery.getStatus() == DeliveryStatus.AGUARDANDO_CONFIRMACAO || delivery.getStatus() == DeliveryStatus.INVIAVEL)
-                .anyMatch(delivery -> drones.stream().noneMatch(drone -> drone.getMaxWeight() != null && delivery.getWeight() != null && delivery.getWeight() <= drone.getMaxWeight()));
+                .anyMatch(delivery -> {
+                    double roundTripDistance = 2.0 * (
+                            Math.abs(delivery.getDestinationX() - selectedHangar.getPositionX())
+                                    + Math.abs(delivery.getDestinationY() - selectedHangar.getPositionY())
+                    );
+                    return drones.stream().noneMatch(drone ->
+                            drone.getMaxWeight() != null
+                                    && drone.getAutonomy() != null
+                                    && delivery.getWeight() != null
+                                    && delivery.getWeight() <= drone.getMaxWeight()
+                                    && roundTripDistance <= drone.getAutonomy()
+                    );
+                });
         if (hasInviableDelivery) {
             return ResponseEntity.badRequest().body("Trate todas as entregas inviaveis antes de confirmar a movimentacao.");
         }
@@ -260,7 +272,8 @@ public class EntregaController {
                 entrega.getRecipientName(),
                 entrega.getHangarId(),
                 entrega.getStatus() == null ? DeliveryStatus.AGUARDANDO_CONFIRMACAO : entrega.getStatus(),
-                entrega.getDroneId()
+                entrega.getDroneId(),
+                entrega.getEstimatedDeliveryAt()
         );
     }
 
@@ -270,9 +283,18 @@ public class EntregaController {
         Entrega original = entregaRepository.findById(id).orElse(null);
         if (original == null) return ResponseEntity.notFound().build();
         if (!user.getId().equals(original.getUserId())) return ResponseEntity.status(403).body("Voce nao pode alterar esta entrega.");
+        Hangar originalHangar = hangarRepository.findById(original.getHangarId()).orElse(null);
+        double originalRoundTripDistance = originalHangar == null ? Double.POSITIVE_INFINITY : 2.0 * (
+                Math.abs(original.getDestinationX() - originalHangar.getPositionX())
+                        + Math.abs(original.getDestinationY() - originalHangar.getPositionY())
+        );
         boolean actuallyInviable = droneRepository.findByUserId(user.getId()).stream()
                 .filter(drone -> original.getHangarId().equals(drone.getHangarId()))
-                .noneMatch(drone -> drone.getMaxWeight() != null && original.getWeight() != null && original.getWeight() <= drone.getMaxWeight());
+                .noneMatch(drone -> drone.getMaxWeight() != null
+                        && drone.getAutonomy() != null
+                        && original.getWeight() != null
+                        && original.getWeight() <= drone.getMaxWeight()
+                        && originalRoundTripDistance <= drone.getAutonomy());
         boolean treatableStatus = original.getStatus() == null || original.getStatus() == DeliveryStatus.AGUARDANDO_CONFIRMACAO || original.getStatus() == DeliveryStatus.INVIAVEL;
         if (!actuallyInviable || !treatableStatus || request == null || request.weights() == null || request.weights().size() < 2 || request.weights().stream().anyMatch(weight -> weight == null || weight <= 0)) {
             return ResponseEntity.badRequest().body("Informe pelo menos duas particoes com pesos positivos para uma entrega inviavel.");
@@ -290,7 +312,7 @@ public class EntregaController {
     }
 
     private DroneResponse toDroneResponse(Drone drone) {
-        return new DroneResponse(drone.getId(), drone.getName(), drone.getAutonomy(), drone.getMaxWeight(), drone.getAverageSpeed(), drone.getHangarId(), drone.getModelId(), drone.getStatus() == null ? DroneStatus.DISPONIVEL : drone.getStatus(), drone.getCurrentLoad() == null ? 0.0 : drone.getCurrentLoad(), drone.getRouteDeliveryIds(), drone.getRouteDistance(), drone.getRouteStatus());
+        return new DroneResponse(drone.getId(), drone.getName(), drone.getAutonomy(), drone.getMaxWeight(), drone.getAverageSpeed(), drone.getHangarId(), drone.getModelId(), drone.getStatus() == null ? DroneStatus.DISPONIVEL : drone.getStatus(), drone.getCurrentLoad() == null ? 0.0 : drone.getCurrentLoad(), drone.getRouteDeliveryIds(), drone.getRouteDistance(), drone.getRouteStatus(), drone.getRouteStartedAt(), drone.getRouteEstimatedCompletionAt());
     }
 
     public record ManagementResponse(List<EntregaResponse> deliveries, List<DroneResponse> drones) {}

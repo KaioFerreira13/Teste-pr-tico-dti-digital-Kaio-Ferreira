@@ -23,6 +23,8 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
 import java.util.List;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @RestController
 @RequestMapping("/api/drones")
@@ -157,6 +159,7 @@ public class DroneController {
 
         delivery.setDroneId(null);
         delivery.setStatus(DeliveryStatus.AGUARDANDO_CONFIRMACAO);
+        delivery.setEstimatedDeliveryAt(null);
         entregaRepository.save(delivery);
 
         double remainingLoad = entregaRepository.findByUserId(user.getId()).stream()
@@ -199,6 +202,7 @@ public class DroneController {
         selectedDeliveries.forEach(delivery -> {
             delivery.setDroneId(null);
             delivery.setStatus(DeliveryStatus.AGUARDANDO_CONFIRMACAO);
+            delivery.setEstimatedDeliveryAt(null);
             entregaRepository.save(delivery);
         });
 
@@ -229,7 +233,29 @@ public class DroneController {
         if (drone.getStatus() != DroneStatus.EM_DESPACHO || drone.getRouteStatus() != RouteStatus.AGUARDANDO_INICIO) {
             return ResponseEntity.badRequest().body("O drone nao possui um frete aguardando inicio.");
         }
+        if (drone.getRouteDistance() == null || drone.getAverageSpeed() == null || drone.getAverageSpeed() <= 0) {
+            return ResponseEntity.badRequest().body("Nao foi possivel calcular o tempo deste frete.");
+        }
+        long durationSeconds = Math.max(1L, (long) Math.ceil((drone.getRouteDistance() / drone.getAverageSpeed()) * 3600.0));
+        Instant startedAt = Instant.now();
+        Hangar hangar = hangarRepository.findById(drone.getHangarId()).orElse(null);
+        if (hangar == null) return ResponseEntity.badRequest().body("Hangar do drone nao encontrado.");
+        int currentX = hangar.getPositionX();
+        int currentY = hangar.getPositionY();
+        double accumulatedDistance = 0.0;
+        for (String deliveryId : drone.getRouteDeliveryIds()) {
+            Entrega delivery = entregaRepository.findById(deliveryId).orElse(null);
+            if (delivery == null) continue;
+            accumulatedDistance += Math.abs(delivery.getDestinationX() - currentX) + Math.abs(delivery.getDestinationY() - currentY);
+            long deliverySeconds = Math.max(1L, (long) Math.ceil((accumulatedDistance / drone.getAverageSpeed()) * 3600.0));
+            delivery.setEstimatedDeliveryAt(startedAt.plus(deliverySeconds, ChronoUnit.SECONDS));
+            entregaRepository.save(delivery);
+            currentX = delivery.getDestinationX();
+            currentY = delivery.getDestinationY();
+        }
         drone.setRouteStatus(RouteStatus.EM_ANDAMENTO);
+        drone.setRouteStartedAt(startedAt);
+        drone.setRouteEstimatedCompletionAt(startedAt.plus(durationSeconds, ChronoUnit.SECONDS));
         return ResponseEntity.ok(toResponse(droneRepository.save(drone)));
     }
 
@@ -247,6 +273,7 @@ public class DroneController {
                 .forEach(delivery -> {
                     delivery.setDroneId(null);
                     delivery.setStatus(DeliveryStatus.AGUARDANDO_CONFIRMACAO);
+                    delivery.setEstimatedDeliveryAt(null);
                     entregaRepository.save(delivery);
                 });
 
@@ -309,7 +336,9 @@ public class DroneController {
                 drone.getCurrentLoad(),
                 drone.getRouteDeliveryIds(),
                 drone.getRouteDistance(),
-                drone.getRouteStatus()
+                drone.getRouteStatus(),
+                drone.getRouteStartedAt(),
+                drone.getRouteEstimatedCompletionAt()
         );
     }
 

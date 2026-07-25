@@ -12,6 +12,7 @@ import Modelos from './pages/Modelos';
 import Entregas from './pages/Entregas';
 import GerenciarEntregas from './pages/GerenciarEntregas';
 import AppLayout from './components/AppLayout';
+import { HangarProvider } from './context/HangarContext';
 import './App.css';
 
 const ProtectedRoute = ({ children }) => {
@@ -31,7 +32,8 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <HangarProvider>
+        <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -121,7 +123,8 @@ function App() {
           />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-      </Router>
+        </Router>
+      </HangarProvider>
     </AuthProvider>
   );
 }

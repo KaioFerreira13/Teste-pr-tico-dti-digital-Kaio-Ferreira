@@ -5,6 +5,7 @@ import com.dtidigital.fretesdrones.model.DeliveryStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.Instant;
 
 @Data
 @NoArgsConstructor
@@ -19,4 +20,5 @@ public class EntregaResponse {
     private String hangarId;
     private DeliveryStatus status;
     private String droneId;
+    private Instant estimatedDeliveryAt;
 }

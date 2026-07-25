@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import api from '../services/api';
 import HangarRouteMap from '../components/HangarRouteMap';
+import RemainingTime from '../components/RemainingTime';
+import { HangarContext } from '../context/HangarContext';
 
 const GerenciarHangars = () => {
   const [hangars, setHangars] = useState([]);
   const [drones, setDrones] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
-  const [selectedHangar, setSelectedHangar] = useState('');
+  const { selectedHangarId: selectedHangar } = useContext(HangarContext);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -36,7 +38,8 @@ const GerenciarHangars = () => {
     }
   };
 
-  useEffect(() => {
+  const loadData = (silent = false) => {
+    if (!silent) setLoading(true);
     Promise.all([api.get('/hangars/me'), api.get('/drones/me'), api.get('/entregas/me')])
       .then(([hangarsResponse, dronesResponse, deliveriesResponse]) => {
         setHangars(hangarsResponse.data || []);
@@ -44,7 +47,13 @@ const GerenciarHangars = () => {
         setDeliveries(deliveriesResponse.data || []);
       })
       .catch((err) => setError(err.response?.data?.message || err.response?.data || 'Não foi possível carregar os hangares.'))
-      .finally(() => setLoading(false));
+      .finally(() => { if (!silent) setLoading(false); });
+  };
+
+  useEffect(() => {
+    loadData();
+    const interval = window.setInterval(() => loadData(true), 5000);
+    return () => window.clearInterval(interval);
   }, []);
 
   const hangar = hangars.find((item) => item.id === selectedHangar);
@@ -58,10 +67,6 @@ const GerenciarHangars = () => {
       <header style={{ padding: '26px', borderRadius: '20px', background: 'white', boxShadow: '0 10px 30px rgba(16,35,61,0.08)' }}>
         <h1 style={{ margin: '0 0 8px' }}>Gestão de hangares</h1>
         <p style={{ margin: 0, color: '#58708d' }}>Selecione um hangar para acompanhar sua operação.</p>
-        <select value={selectedHangar} onChange={(event) => setSelectedHangar(event.target.value)} style={{ marginTop: '20px', width: '100%', maxWidth: '480px', padding: '12px', borderRadius: '10px', border: '1px solid #d6deea', background: 'white' }}>
-          <option value="">Selecione um hangar</option>
-          {hangars.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
         {error && <p style={{ color: '#c53030', marginBottom: 0 }}>{error}</p>}
       </header>
 
@@ -99,7 +104,7 @@ const GerenciarHangars = () => {
                   </div>
                   <div style={{ display: 'flex', gap: '9px', alignItems: 'center', flexWrap: 'wrap' }}>
                     {drone.routeStatus === 'AGUARDANDO_INICIO' && <button onClick={() => startFreight(drone.id)} style={{ padding: '10px 14px', border: 0, borderRadius: '9px', background: '#f6c453', color: '#10233d', fontWeight: 800, cursor: 'pointer' }}>Confirmar início do frete</button>}
-                    {drone.routeStatus === 'EM_ANDAMENTO' && <strong style={{ padding: '8px 12px', borderRadius: '8px', background: '#dcfce7', color: '#237a48' }}>Frete em andamento</strong>}
+                    {drone.routeStatus === 'EM_ANDAMENTO' && <strong style={{ padding: '8px 12px', borderRadius: '8px', background: '#dcfce7', color: '#237a48' }}>Tempo restante: <RemainingTime estimatedCompletionAt={drone.routeEstimatedCompletionAt} /></strong>}
                     <button onClick={() => resetDrone(drone.id)} style={{ padding: '10px 14px', border: 0, borderRadius: '9px', background: '#fee2e2', color: '#c53030', fontWeight: 800, cursor: 'pointer' }}>Resetar drone</button>
                   </div>
                 </div>

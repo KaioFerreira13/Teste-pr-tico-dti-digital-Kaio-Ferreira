@@ -3,6 +3,7 @@ package com.dtidigital.fretesdrones.dto;
 import com.dtidigital.fretesdrones.model.DroneStatus;
 import com.dtidigital.fretesdrones.model.RouteStatus;
 import java.util.List;
+import java.time.Instant;
 
 public class DroneResponse {
     private String id;
@@ -17,8 +18,10 @@ public class DroneResponse {
     private List<String> routeDeliveryIds;
     private Double routeDistance;
     private RouteStatus routeStatus;
+    private Instant routeStartedAt;
+    private Instant routeEstimatedCompletionAt;
 
-    public DroneResponse(String id, String name, Double autonomy, Double maxWeight, Double averageSpeed, String hangarId, String modelId, DroneStatus status, Double currentLoad, List<String> routeDeliveryIds, Double routeDistance, RouteStatus routeStatus) {
+    public DroneResponse(String id, String name, Double autonomy, Double maxWeight, Double averageSpeed, String hangarId, String modelId, DroneStatus status, Double currentLoad, List<String> routeDeliveryIds, Double routeDistance, RouteStatus routeStatus, Instant routeStartedAt, Instant routeEstimatedCompletionAt) {
         this.id = id;
         this.name = name;
         this.autonomy = autonomy;
@@ -31,6 +34,8 @@ public class DroneResponse {
         this.routeDeliveryIds = routeDeliveryIds;
         this.routeDistance = routeDistance;
         this.routeStatus = routeStatus;
+        this.routeStartedAt = routeStartedAt;
+        this.routeEstimatedCompletionAt = routeEstimatedCompletionAt;
     }
 
     public String getId() {
@@ -66,4 +71,6 @@ public class DroneResponse {
     public List<String> getRouteDeliveryIds() { return routeDeliveryIds; }
     public Double getRouteDistance() { return routeDistance; }
     public RouteStatus getRouteStatus() { return routeStatus; }
+    public Instant getRouteStartedAt() { return routeStartedAt; }
+    public Instant getRouteEstimatedCompletionAt() { return routeEstimatedCompletionAt; }
 }

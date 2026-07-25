@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.ArrayList;
 
 @Service
 public class DeliveryAllocationService {
@@ -29,8 +30,10 @@ public class DeliveryAllocationService {
     }
 
     public void allocateConfirmed(String userId, String hangarId) {
-        List<Drone> availableDrones = droneRepository.findByUserId(userId).stream()
+        List<Drone> hangarDrones = droneRepository.findByUserId(userId).stream()
                 .filter(drone -> hangarId.equals(drone.getHangarId()))
+                .toList();
+        List<Drone> availableDrones = hangarDrones.stream()
                 .filter(drone -> drone.getStatus() == null || drone.getStatus() == DroneStatus.DISPONIVEL)
                 .toList();
         List<Entrega> queue = entregaRepository.findByUserId(userId).stream()
@@ -41,11 +44,27 @@ public class DeliveryAllocationService {
 
         Map<String, Double> loads = new HashMap<>();
         availableDrones.forEach(drone -> loads.put(drone.getId(), drone.getCurrentLoad() == null ? 0.0 : drone.getCurrentLoad()));
+        Map<String, List<Entrega>> plannedDeliveries = new HashMap<>();
+        availableDrones.forEach(drone -> plannedDeliveries.put(drone.getId(), new ArrayList<>()));
         Set<String> assignedDroneIds = new HashSet<>();
 
         for (Entrega delivery : queue) {
-            Drone idleBest = bestFit(availableDrones, assignedDroneIds, loads, delivery, false);
-            Drone assignedBest = bestFit(availableDrones, assignedDroneIds, loads, delivery, true);
+            boolean canAnyDroneComplete = hangarDrones.stream().anyMatch(drone ->
+                    drone.getMaxWeight() != null
+                            && drone.getAutonomy() != null
+                            && delivery.getWeight() != null
+                            && delivery.getWeight() <= drone.getMaxWeight()
+                            && routePlanningService.calculateDistance(drone, List.of(delivery)) <= drone.getAutonomy()
+            );
+            if (!canAnyDroneComplete) {
+                delivery.setStatus(DeliveryStatus.INVIAVEL);
+                delivery.setDroneId(null);
+                entregaRepository.save(delivery);
+                continue;
+            }
+
+            Drone idleBest = bestFit(availableDrones, assignedDroneIds, loads, plannedDeliveries, delivery, false);
+            Drone assignedBest = bestFit(availableDrones, assignedDroneIds, loads, plannedDeliveries, delivery, true);
             Drone best = idleBest != null ? idleBest : assignedBest;
             if (best == null) {
                 if (delivery.getStatus() == DeliveryStatus.NA_FILA) {
@@ -56,6 +75,7 @@ public class DeliveryAllocationService {
             }
 
             loads.put(best.getId(), loads.get(best.getId()) + delivery.getWeight());
+            plannedDeliveries.get(best.getId()).add(delivery);
             assignedDroneIds.add(best.getId());
             delivery.setStatus(DeliveryStatus.EM_DESPACHO);
             delivery.setDroneId(best.getId());
@@ -67,19 +87,20 @@ public class DeliveryAllocationService {
             drone.setCurrentLoad(loads.get(drone.getId()));
             drone.setStatus(DroneStatus.EM_DESPACHO);
             droneRepository.save(drone);
-            List<Entrega> assignedDeliveries = entregaRepository.findByUserId(userId).stream()
-                    .filter(delivery -> drone.getId().equals(delivery.getDroneId()))
-                    .filter(delivery -> delivery.getStatus() == DeliveryStatus.EM_DESPACHO)
-                    .toList();
-            routePlanningService.plan(drone, assignedDeliveries);
+            routePlanningService.plan(drone, plannedDeliveries.get(drone.getId()));
         }
     }
 
-    private Drone bestFit(List<Drone> drones, Set<String> assignedIds, Map<String, Double> loads, Entrega delivery, boolean assigned) {
+    private Drone bestFit(List<Drone> drones, Set<String> assignedIds, Map<String, Double> loads, Map<String, List<Entrega>> plannedDeliveries, Entrega delivery, boolean assigned) {
         return drones.stream()
                 .filter(drone -> assignedIds.contains(drone.getId()) == assigned)
-                .filter(drone -> drone.getMaxWeight() != null && delivery.getWeight() != null)
+                .filter(drone -> drone.getMaxWeight() != null && drone.getAutonomy() != null && delivery.getWeight() != null)
                 .filter(drone -> loads.get(drone.getId()) + delivery.getWeight() <= drone.getMaxWeight())
+                .filter(drone -> {
+                    List<Entrega> routeDeliveries = new ArrayList<>(plannedDeliveries.get(drone.getId()));
+                    routeDeliveries.add(delivery);
+                    return routePlanningService.calculateDistance(drone, routeDeliveries) <= drone.getAutonomy();
+                })
                 .min(Comparator.comparingDouble(drone -> drone.getMaxWeight() - loads.get(drone.getId()) - delivery.getWeight()))
                 .orElse(null);
     }

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import java.time.Instant;
 
 @Document(collection = "entregas")
 @Getter
@@ -27,6 +28,7 @@ public class Entrega {
     private String userId;
     private DeliveryStatus status;
     private String droneId;
+    private Instant estimatedDeliveryAt;
 
     public Entrega(Double weight, Integer destinationX, Integer destinationY, DeliveryPriority priority, String recipientName, String hangarId, String userId) {
         this.weight = weight;

@@ -30,18 +30,33 @@ public class RoutePlanningService {
             return;
         }
 
+        RoutePlan plan = calculate(hangar, deliveries);
+        drone.setRouteDeliveryIds(plan.deliveries().stream().map(Entrega::getId).toList());
+        drone.setRouteDistance(plan.distance());
+        drone.setRouteStatus(RouteStatus.AGUARDANDO_INICIO);
+        drone.setRouteStartedAt(null);
+        drone.setRouteEstimatedCompletionAt(null);
+        droneRepository.save(drone);
+    }
+
+    public double calculateDistance(Drone drone, List<Entrega> deliveries) {
+        Hangar hangar = hangarRepository.findById(drone.getHangarId()).orElse(null);
+        if (hangar == null || deliveries.isEmpty()) return 0.0;
+        return calculate(hangar, deliveries).distance();
+    }
+
+    private RoutePlan calculate(Hangar hangar, List<Entrega> deliveries) {
         Search search = new Search(hangar.getPositionX(), hangar.getPositionY(), deliveries);
         search.solve();
-        drone.setRouteDeliveryIds(search.bestOrder.stream().map(Entrega::getId).toList());
-        drone.setRouteDistance((double) search.bestDistance);
-        drone.setRouteStatus(RouteStatus.AGUARDANDO_INICIO);
-        droneRepository.save(drone);
+        return new RoutePlan(search.bestOrder, (double) search.bestDistance);
     }
 
     public void clear(Drone drone) {
         drone.setRouteDeliveryIds(List.of());
         drone.setRouteDistance(0.0);
         drone.setRouteStatus(null);
+        drone.setRouteStartedAt(null);
+        drone.setRouteEstimatedCompletionAt(null);
         droneRepository.save(drone);
     }
 
@@ -103,4 +118,6 @@ public class RoutePlanningService {
             return Math.abs(x1 - x2) + Math.abs(y1 - y2);
         }
     }
+
+    private record RoutePlan(List<Entrega> deliveries, double distance) {}
 }

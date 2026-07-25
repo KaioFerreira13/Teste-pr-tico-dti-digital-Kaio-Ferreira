@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import api from '../services/api';
+import RemainingTime from '../components/RemainingTime';
+import { HangarContext } from '../context/HangarContext';
 
 const droneStatuses = [
   { value: 'DISPONIVEL', label: 'Disponível' },
@@ -12,14 +14,16 @@ const GerenciarDrones = () => {
   const [hangars, setHangars] = useState([]);
   const [drones, setDrones] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
-  const [selectedHangar, setSelectedHangar] = useState('');
+  const { selectedHangarId: selectedHangar } = useContext(HangarContext);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedByDrone, setSelectedByDrone] = useState({});
 
-  const loadData = async () => {
-    setLoading(true);
-    setError('');
+  const loadData = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
     try {
       const [hangarsResponse, dronesResponse, deliveriesResponse] = await Promise.all([
         api.get('/hangars/me'), api.get('/drones/me'), api.get('/entregas/me')
@@ -30,11 +34,15 @@ const GerenciarDrones = () => {
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data || 'Não foi possível carregar a gestão de drones.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    const interval = window.setInterval(() => loadData(true), 5000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const updateStatus = async (droneId, status) => {
     setError('');
@@ -91,10 +99,6 @@ const GerenciarDrones = () => {
       <header style={{ padding: '26px', borderRadius: '20px', background: 'white', boxShadow: '0 10px 30px rgba(16,35,61,0.08)' }}>
         <h1 style={{ margin: '0 0 8px' }}>Gestão de drones</h1>
         <p style={{ margin: 0, color: '#58708d' }}>Acompanhe as entregas alocadas e controle a situação operacional de cada drone.</p>
-        <select value={selectedHangar} onChange={(event) => setSelectedHangar(event.target.value)} style={{ marginTop: '20px', width: '100%', maxWidth: '480px', padding: '12px', borderRadius: '10px', border: '1px solid #d6deea', background: 'white' }}>
-          <option value="">Selecione um hangar</option>
-          {hangars.map((hangar) => <option key={hangar.id} value={hangar.id}>{hangar.name}</option>)}
-        </select>
         {error && <p style={{ color: '#c53030', marginBottom: 0 }}>{error}</p>}
       </header>
 
@@ -117,7 +121,7 @@ const GerenciarDrones = () => {
             <div style={{ display: 'grid', gap: '9px' }}>
               {assigned.map((delivery) => <div key={delivery.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '10px', background: '#f7f9fc' }}>
                 <input type="checkbox" checked={(selectedByDrone[drone.id] || []).includes(delivery.id)} onChange={() => toggleDelivery(drone.id, delivery.id)} aria-label={`Selecionar entrega de ${delivery.recipientName}`} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-                <div><strong>{delivery.recipientName}</strong><div style={{ color: '#58708d', fontSize: '0.9rem' }}>{delivery.weight} kg | Prioridade {delivery.priority?.toLowerCase()}</div></div>
+                <div><strong>{delivery.recipientName}</strong><div style={{ color: '#58708d', fontSize: '0.9rem' }}>{delivery.weight} kg | Prioridade {delivery.priority?.toLowerCase()}</div>{drone.routeStatus === 'EM_ANDAMENTO' && <div style={{ marginTop: '4px', color: '#237a48', fontSize: '0.9rem', fontWeight: 700 }}>Tempo restante: <RemainingTime estimatedCompletionAt={delivery.estimatedDeliveryAt} /></div>}</div>
               </div>)}
               {!assigned.length && <span style={{ color: '#58708d' }}>Nenhuma entrega alocada neste drone.</span>}
             </div>

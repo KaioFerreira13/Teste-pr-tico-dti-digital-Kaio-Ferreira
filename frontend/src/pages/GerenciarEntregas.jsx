@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import api from '../services/api';
+import { HangarContext } from '../context/HangarContext';
 
 const deliveryLabels = {
   AGUARDANDO_CONFIRMACAO: 'Aguardando confirmação',
@@ -19,7 +20,7 @@ const statusColors = {
 
 const GerenciarEntregas = () => {
   const [hangars, setHangars] = useState([]);
-  const [selectedHangar, setSelectedHangar] = useState('');
+  const { selectedHangarId: selectedHangar } = useContext(HangarContext);
   const [deliveries, setDeliveries] = useState([]);
   const [drones, setDrones] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -56,12 +57,10 @@ const GerenciarEntregas = () => {
       .catch(() => setError('Nao foi possivel carregar os hangares.'));
   }, []);
 
-  const handleHangarChange = (event) => {
-    const hangarId = event.target.value;
-    setSelectedHangar(hangarId);
+  useEffect(() => {
     setPrepared(false);
-    loadManagement(hangarId);
-  };
+    loadManagement(selectedHangar);
+  }, [selectedHangar]);
 
   const allocatePendingDeliveries = (sourceDeliveries, sourceDrones) => {
     const pending = sourceDeliveries
@@ -70,7 +69,11 @@ const GerenciarEntregas = () => {
     const nextDeliveries = sourceDeliveries.map((delivery) => ({ ...delivery }));
 
     pending.forEach((delivery) => {
-      const canEverFit = sourceDrones.some((drone) => delivery.weight <= drone.maxWeight);
+      const hangar = hangars.find((item) => item.id === selectedHangar);
+      const roundTripDistance = hangar
+        ? 2 * (Math.abs(delivery.destinationX - hangar.positionX) + Math.abs(delivery.destinationY - hangar.positionY))
+        : Number.POSITIVE_INFINITY;
+      const canEverFit = sourceDrones.some((drone) => delivery.weight <= drone.maxWeight && roundTripDistance <= drone.autonomy);
       const target = nextDeliveries.find((item) => item.id === delivery.id);
       target.status = canEverFit ? 'CONFIRMADA' : 'INVIAVEL';
       target.droneId = null;
@@ -219,10 +222,6 @@ const GerenciarEntregas = () => {
       <div style={{ marginBottom: '20px', padding: '26px', borderRadius: '20px', background: 'white', boxShadow: '0 10px 30px rgba(16,35,61,0.08)' }}>
         <h1 style={{ margin: '0 0 8px' }}>Gerenciar entregas</h1>
         <p style={{ margin: 0, color: '#58708d' }}>Selecione um hangar para visualizar a operação e preparar o despacho.</p>
-        <select value={selectedHangar} onChange={handleHangarChange} style={{ marginTop: '20px', width: '100%', maxWidth: '480px', padding: '12px', borderRadius: '10px', border: '1px solid #d6deea', background: 'white' }}>
-          <option value="">Selecione um hangar</option>
-          {hangars.map((hangar) => <option key={hangar.id} value={hangar.id}>{hangar.name}</option>)}
-        </select>
         {selectedHangar && !prepared && <button onClick={prepareDispatch} disabled={loading} style={{ marginTop: '14px', display: 'block', padding: '11px 16px', border: 0, borderRadius: '10px', background: '#0f5bd7', color: 'white', fontWeight: 700, cursor: 'pointer' }}>Preparar despacho</button>}
         {selectedHangar && prepared && <button onClick={confirmDispatch} disabled={loading || grouped.INVIAVEL.length > 0} title={grouped.INVIAVEL.length > 0 ? 'Trate as entregas inviáveis antes de confirmar' : ''} style={{ marginTop: '14px', display: 'block', padding: '11px 16px', border: 0, borderRadius: '10px', background: grouped.INVIAVEL.length > 0 ? '#94a3b8' : '#2f855a', color: 'white', fontWeight: 700, cursor: grouped.INVIAVEL.length > 0 ? 'not-allowed' : 'pointer' }}>{loading ? 'Confirmando...' : 'Confirmar movimentação'}</button>}
         {selectedHangar && grouped.CONFIRMADA.length > 0 && <button onClick={clearQueue} disabled={loading} style={{ marginTop: '10px', display: 'block', padding: '10px 15px', border: 0, borderRadius: '10px', background: '#fee2e2', color: '#c53030', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Limpando...' : 'Limpar fila'}</button>}
