@@ -114,10 +114,12 @@ const Entregas = () => {
   };
 
   const sortedDeliveries = useMemo(() => {
-    return [...deliveries].sort((a, b) => {
+    return deliveries
+      .filter((delivery) => delivery.status !== 'EM_DESPACHO' && delivery.status !== 'ENTREGUE')
+      .sort((a, b) => {
       const priorityWeight = { ALTA: 0, MEDIA: 1, BAIXA: 2 };
       return (priorityWeight[a.priority] ?? 3) - (priorityWeight[b.priority] ?? 3);
-    });
+      });
   }, [deliveries]);
 
   return (
@@ -242,7 +244,7 @@ const Entregas = () => {
             {loading ? (
               <p>Carregando...</p>
             ) : sortedDeliveries.length === 0 ? (
-              <p>Voce ainda nao cadastrou nenhuma entrega.</p>
+              <p>Não há entregas disponíveis para edição.</p>
             ) : (
               <div style={{ display: 'grid', gap: '12px' }}>
                 {sortedDeliveries.map((delivery) => (

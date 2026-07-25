@@ -138,6 +138,21 @@ public class EntregaController {
         return ResponseEntity.ok(buildManagement(hangarId, user));
     }
 
+    @PostMapping("/gerenciamento/{hangarId}/limpar-fila")
+    public ResponseEntity<?> clearQueue(@PathVariable String hangarId, Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        getOwnedHangar(hangarId, user);
+        entregaRepository.findByUserId(user.getId()).stream()
+                .filter(delivery -> hangarId.equals(delivery.getHangarId()))
+                .filter(delivery -> delivery.getStatus() == DeliveryStatus.CONFIRMADA || delivery.getStatus() == DeliveryStatus.NA_FILA)
+                .forEach(delivery -> {
+                    delivery.setStatus(DeliveryStatus.AGUARDANDO_CONFIRMACAO);
+                    delivery.setDroneId(null);
+                    entregaRepository.save(delivery);
+                });
+        return ResponseEntity.ok(buildManagement(hangarId, user));
+    }
+
     private ManagementResponse buildManagement(String hangarId, User user) {
         List<EntregaResponse> deliveries = entregaRepository.findByUserId(user.getId()).stream()
                 .filter(delivery -> hangarId.equals(delivery.getHangarId())).map(this::toResponse).toList();
@@ -184,6 +199,9 @@ public class EntregaController {
                 .map(entrega -> {
                     if (!entrega.getUserId().equals(user.getId())) {
                         return ResponseEntity.status(403).body("Voce nao pode alterar esta entrega.");
+                    }
+                    if (entrega.getStatus() == DeliveryStatus.EM_DESPACHO || entrega.getStatus() == DeliveryStatus.ENTREGUE) {
+                        return ResponseEntity.badRequest().body("Entregas ja despachadas nao podem ser editadas.");
                     }
 
                     entrega.setWeight(request.getWeight());

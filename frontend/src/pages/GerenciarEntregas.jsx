@@ -115,6 +115,22 @@ const GerenciarEntregas = () => {
     }
   };
 
+  const clearQueue = async () => {
+    if (!window.confirm('Limpar a fila e devolver todos os pedidos para aguardando confirmação?')) return;
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.post(`/entregas/gerenciamento/${selectedHangar}/limpar-fila`);
+      setDeliveries((response.data.deliveries || []).filter((delivery) => delivery.status !== 'EM_DESPACHO'));
+      setDrones(response.data.drones || []);
+      setPrepared(false);
+    } catch (err) {
+      setError(err.response?.data?.message || err.response?.data || 'Não foi possível limpar a fila.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const openSplitModal = (delivery) => {
     setInviableDelivery(delivery);
     setPartitionCount(2);
@@ -209,6 +225,7 @@ const GerenciarEntregas = () => {
         </select>
         {selectedHangar && !prepared && <button onClick={prepareDispatch} disabled={loading} style={{ marginTop: '14px', display: 'block', padding: '11px 16px', border: 0, borderRadius: '10px', background: '#0f5bd7', color: 'white', fontWeight: 700, cursor: 'pointer' }}>Preparar despacho</button>}
         {selectedHangar && prepared && <button onClick={confirmDispatch} disabled={loading || grouped.INVIAVEL.length > 0} title={grouped.INVIAVEL.length > 0 ? 'Trate as entregas inviáveis antes de confirmar' : ''} style={{ marginTop: '14px', display: 'block', padding: '11px 16px', border: 0, borderRadius: '10px', background: grouped.INVIAVEL.length > 0 ? '#94a3b8' : '#2f855a', color: 'white', fontWeight: 700, cursor: grouped.INVIAVEL.length > 0 ? 'not-allowed' : 'pointer' }}>{loading ? 'Confirmando...' : 'Confirmar movimentação'}</button>}
+        {selectedHangar && grouped.CONFIRMADA.length > 0 && <button onClick={clearQueue} disabled={loading} style={{ marginTop: '10px', display: 'block', padding: '10px 15px', border: 0, borderRadius: '10px', background: '#fee2e2', color: '#c53030', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Limpando...' : 'Limpar fila'}</button>}
         {prepared && grouped.INVIAVEL.length > 0 && <p style={{ marginBottom: 0, color: '#c53030' }}>Trate todas as entregas inviáveis para liberar a confirmação.</p>}
         {error && <p style={{ color: '#c53030', marginBottom: 0 }}>{error}</p>}
       </div>

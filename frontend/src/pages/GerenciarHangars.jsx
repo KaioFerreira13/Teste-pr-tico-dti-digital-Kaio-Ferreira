@@ -21,6 +21,21 @@ const GerenciarHangars = () => {
     }
   };
 
+  const resetDrone = async (droneId) => {
+    const drone = drones.find((item) => item.id === droneId);
+    if (!window.confirm(`Resetar o drone ${drone?.name || ''}? Todas as entregas alocadas voltarão para aguardando confirmação.`)) return;
+    setError('');
+    try {
+      const response = await api.post(`/drones/${droneId}/reset`);
+      setDrones((current) => current.map((item) => item.id === droneId ? response.data : item));
+      setDeliveries((current) => current.map((delivery) => delivery.droneId === droneId
+        ? { ...delivery, droneId: null, status: 'AGUARDANDO_CONFIRMACAO' }
+        : delivery));
+    } catch (err) {
+      setError(err.response?.data?.message || err.response?.data || 'Não foi possível resetar o drone.');
+    }
+  };
+
   useEffect(() => {
     Promise.all([api.get('/hangars/me'), api.get('/drones/me'), api.get('/entregas/me')])
       .then(([hangarsResponse, dronesResponse, deliveriesResponse]) => {
@@ -82,8 +97,11 @@ const GerenciarHangars = () => {
                     <h3 style={{ margin: 0 }}>{drone.name}</h3>
                     <p style={{ margin: '6px 0 0', color: '#58708d' }}>Status: {(drone.status || 'DISPONIVEL').toLowerCase().replaceAll('_', ' ')} | Carga: {drone.currentLoad || 0} / {drone.maxWeight} kg</p>
                   </div>
-                  {drone.routeStatus === 'AGUARDANDO_INICIO' && <button onClick={() => startFreight(drone.id)} style={{ padding: '10px 14px', border: 0, borderRadius: '9px', background: '#f6c453', color: '#10233d', fontWeight: 800, cursor: 'pointer' }}>Confirmar início do frete</button>}
-                  {drone.routeStatus === 'EM_ANDAMENTO' && <strong style={{ padding: '8px 12px', borderRadius: '8px', background: '#dcfce7', color: '#237a48' }}>Frete em andamento</strong>}
+                  <div style={{ display: 'flex', gap: '9px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {drone.routeStatus === 'AGUARDANDO_INICIO' && <button onClick={() => startFreight(drone.id)} style={{ padding: '10px 14px', border: 0, borderRadius: '9px', background: '#f6c453', color: '#10233d', fontWeight: 800, cursor: 'pointer' }}>Confirmar início do frete</button>}
+                    {drone.routeStatus === 'EM_ANDAMENTO' && <strong style={{ padding: '8px 12px', borderRadius: '8px', background: '#dcfce7', color: '#237a48' }}>Frete em andamento</strong>}
+                    <button onClick={() => resetDrone(drone.id)} style={{ padding: '10px 14px', border: 0, borderRadius: '9px', background: '#fee2e2', color: '#c53030', fontWeight: 800, cursor: 'pointer' }}>Resetar drone</button>
+                  </div>
                 </div>
 
                 {routeDeliveries.length > 0 ? <div style={{ marginTop: '16px', padding: '15px', borderRadius: '12px', background: '#f7f9fc' }}>

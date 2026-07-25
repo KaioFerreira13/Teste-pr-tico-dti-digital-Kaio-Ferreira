@@ -233,6 +233,29 @@ public class DroneController {
         return ResponseEntity.ok(toResponse(droneRepository.save(drone)));
     }
 
+    @PostMapping("/{id}/reset")
+    public ResponseEntity<?> resetDrone(@PathVariable String id, Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        Drone drone = droneRepository.findById(id).orElse(null);
+        if (drone == null) return ResponseEntity.notFound().build();
+        if (!user.getId().equals(drone.getUserId())) {
+            return ResponseEntity.status(403).body("Voce nao pode resetar este drone.");
+        }
+
+        entregaRepository.findByUserId(user.getId()).stream()
+                .filter(delivery -> id.equals(delivery.getDroneId()))
+                .forEach(delivery -> {
+                    delivery.setDroneId(null);
+                    delivery.setStatus(DeliveryStatus.AGUARDANDO_CONFIRMACAO);
+                    entregaRepository.save(delivery);
+                });
+
+        drone.setStatus(DroneStatus.DISPONIVEL);
+        drone.setCurrentLoad(0.0);
+        routePlanningService.clear(drone);
+        return ResponseEntity.ok(toResponse(droneRepository.findById(id).orElse(drone)));
+    }
+
     private String validateRequest(DroneRequest request, String userId, String currentId) {
         if (request.getName() == null || request.getName().isBlank()) {
             return "Drone name is required";
