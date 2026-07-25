@@ -9,6 +9,7 @@ Thumbs.db
 logs/
 .env
 .env.*
+!backend/.env.example
 
 # Frontend
 frontend/node_modules/

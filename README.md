@@ -50,3 +50,44 @@ Endpoint inicial da API:
 ```text
 GET http://localhost:8080/api/health
 ```
+
+## Docker
+
+Crie um arquivo `backend/.env` usando `backend/.env.example` como referencia.
+Depois, na raiz do repositorio:
+
+```powershell
+docker build -t fretes-drones-api ./backend
+docker run --rm -p 8080:8080 --env-file ./backend/.env fretes-drones-api
+```
+
+Verifique a aplicacao:
+
+```text
+GET http://localhost:8080/api/health
+```
+
+## Deploy no Render
+
+O arquivo `render.yaml` permite criar o servico como um Render Blueprint.
+
+1. Envie o repositorio para o GitHub.
+2. No Render, escolha `New` e depois `Blueprint`.
+3. Selecione o repositorio e confirme o servico `fretes-drones-api`.
+4. Informe `MONGODB_URI` com a URI completa do MongoDB.
+5. Informe `CORS_ALLOWED_ORIGINS` com a URL HTTPS do frontend. Para mais de
+   uma origem, separe os enderecos por virgula e nao adicione barra no final.
+6. O `JWT_SECRET` sera gerado automaticamente pelo Blueprint.
+7. No MongoDB Atlas, permita conexoes originadas pelo Render.
+
+O Render define `PORT` automaticamente. A aplicacao utiliza essa variavel e
+expoe o health check publico em `/api/health`.
+
+Variaveis:
+
+| Variavel | Obrigatoria | Descricao |
+| --- | --- | --- |
+| `MONGODB_URI` | Sim | URI de conexao com o MongoDB e nome do banco. |
+| `JWT_SECRET` | Sim | Chave longa e aleatoria usada para assinar tokens. |
+| `CORS_ALLOWED_ORIGINS` | Sim | URLs autorizadas a acessar a API pelo navegador. |
+| `PORT` | Nao | Porta HTTP; o Render fornece automaticamente. |
