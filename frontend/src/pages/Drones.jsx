@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { getErrorMessage } from '../utils/errorMessage';
-
 const initialForm = {
   name: '',
   autonomy: '',
@@ -11,7 +10,6 @@ const initialForm = {
   hangarId: '',
   modelId: ''
 };
-
 const Drones = () => {
   const [drones, setDrones] = useState([]);
   const [hangars, setHangars] = useState([]);
@@ -21,15 +19,10 @@ const Drones = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-
   const loadData = async () => {
     setLoading(true);
     try {
-      const [dronesRes, optionsRes] = await Promise.all([
-        api.get('/drones/me'),
-        api.get('/modelos/me')
-      ]);
-
+      const [dronesRes, optionsRes] = await Promise.all([api.get('/drones/me'), api.get('/modelos/me')]);
       setDrones(Array.isArray(dronesRes.data) ? dronesRes.data : []);
       setModels(Array.isArray(optionsRes.data) ? optionsRes.data : []);
       const hangarsRes = await api.get('/hangars/me');
@@ -40,32 +33,38 @@ const Drones = () => {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     loadData();
   }, []);
-
   const resetForm = () => {
     setForm(initialForm);
     setEditingId(null);
   };
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-
+  const handleChange = event => {
+    const {
+      name,
+      value
+    } = event.target;
     if (name === 'modelId') {
       if (!value) {
-        setForm((current) => ({ ...current, modelId: '', autonomy: '', maxWeight: '', averageSpeed: '' }));
+        setForm(current => ({
+          ...current,
+          modelId: '',
+          autonomy: '',
+          maxWeight: '',
+          averageSpeed: ''
+        }));
         return;
       }
-
-      const selectedModel = models.find((model) => model.id === value);
+      const selectedModel = models.find(model => model.id === value);
       if (!selectedModel) {
-        setForm((current) => ({ ...current, modelId: value }));
+        setForm(current => ({
+          ...current,
+          modelId: value
+        }));
         return;
       }
-
-      setForm((current) => ({
+      setForm(current => ({
         ...current,
         modelId: value,
         autonomy: String(selectedModel.autonomy ?? ''),
@@ -74,15 +73,15 @@ const Drones = () => {
       }));
       return;
     }
-
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm(current => ({
+      ...current,
+      [name]: value
+    }));
   };
-
-  const handleSubmit = async (event) => {
+  const handleSubmit = async event => {
     event.preventDefault();
     setError('');
     setSaving(true);
-
     const payload = {
       name: form.name.trim(),
       autonomy: Number(form.autonomy),
@@ -91,7 +90,6 @@ const Drones = () => {
       hangarId: form.hangarId,
       modelId: form.modelId || null
     };
-
     try {
       if (editingId) {
         await api.put(`/drones/${editingId}`, payload);
@@ -106,8 +104,7 @@ const Drones = () => {
       setSaving(false);
     }
   };
-
-  const handleEdit = (drone) => {
+  const handleEdit = drone => {
     setEditingId(drone.id);
     setForm({
       name: drone.name || '',
@@ -118,8 +115,7 @@ const Drones = () => {
       modelId: drone.modelId || ''
     });
   };
-
-  const handleDelete = async (id) => {
+  const handleDelete = async id => {
     try {
       await api.delete(`/drones/${id}`);
       await loadData();
@@ -127,141 +123,115 @@ const Drones = () => {
       setError(getErrorMessage(err, 'Nao foi possivel excluir o drone.'));
     }
   };
-
   const dronesByHangar = hangars.reduce((accumulator, hangar) => {
-    accumulator[hangar.id] = drones.filter((drone) => drone.hangarId === hangar.id);
+    accumulator[hangar.id] = drones.filter(drone => drone.hangarId === hangar.id);
     return accumulator;
   }, {});
-
-  return (
-    <div style={{ minHeight: '100%', background: '#f4f7fb', color: '#10233d' }}>
-      <div style={{ margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', gap: '16px' }}>
+  return <div className="[min-height:100%] [background:#f4f7fb] [color:#10233d]">
+      <div className="[margin:0_auto]">
+        <div className="[display:flex] [justify-content:space-between] [align-items:center] [margin-bottom:24px] [gap:16px]">
           <div>
-            <h1 style={{ margin: 0 }}>Drones</h1>
-            <p style={{ margin: '8px 0 0', color: '#58708d' }}>Cadastre manualmente ou importe dados de um modelo salvo.</p>
+            <h1 className="[margin:0]">Drones</h1>
+            <p className="[margin:8px_0_0] [color:#58708d]">Cadastre manualmente ou importe dados de um modelo salvo.</p>
           </div>
-          <Link to="/dashboard" style={{ padding: '10px 16px', borderRadius: '10px', background: '#0f5bd7', color: 'white', textDecoration: 'none' }}>
+          <Link to="/dashboard" className="[padding:10px_16px] [border-radius:10px] [background:#0f5bd7] [color:white] [text-decoration:none]">
             Voltar ao dashboard
           </Link>
         </div>
 
-        {error && <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '10px', background: '#ffe3e3', color: '#9d1c1c' }}>{error}</div>}
+        {error && <div className="[margin-bottom:16px] [padding:12px_14px] [border-radius:10px] [background:#ffe3e3] [color:#9d1c1c]">{error}</div>}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', gap: '20px' }}>
-          <form onSubmit={handleSubmit} style={{ background: 'white', padding: '24px', borderRadius: '18px', boxShadow: '0 10px 30px rgba(16,35,61,0.08)' }}>
-            <h2 style={{ marginTop: 0 }}>{editingId ? 'Editar drone' : 'Novo drone'}</h2>
+        <div className="[display:grid] [grid-template-columns:1fr_1.1fr] [gap:20px]">
+          <form onSubmit={handleSubmit} className="[background:white] [padding:24px] [border-radius:18px] [box-shadow:0_10px_30px_rgba(16,35,61,0.08)]">
+            <h2 className="[margin-top:0]">{editingId ? 'Editar drone' : 'Novo drone'}</h2>
 
-            <label style={{ display: 'block', marginBottom: '12px' }}>
-              <span style={{ display: 'block', marginBottom: '6px' }}>Nome</span>
-              <input name="name" value={form.name} onChange={handleChange} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #d6deea' }} />
+            <label className="[display:block] [margin-bottom:12px]">
+              <span className="[display:block] [margin-bottom:6px]">Nome</span>
+              <input name="name" value={form.name} onChange={handleChange} required className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea]" />
             </label>
 
-            <label style={{ display: 'block', marginBottom: '12px' }}>
-              <span style={{ display: 'block', marginBottom: '6px' }}>Importar modelo salvo</span>
-              <select name="modelId" value={form.modelId} onChange={handleChange} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #d6deea', background: 'white' }}>
+            <label className="[display:block] [margin-bottom:12px]">
+              <span className="[display:block] [margin-bottom:6px]">Importar modelo salvo</span>
+              <select name="modelId" value={form.modelId} onChange={handleChange} className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea] [background:white]">
                 <option value="">Preencher manualmente</option>
-                {models.map((model) => (
-                  <option key={model.id} value={model.id}>{model.name}</option>
-                ))}
+                {models.map(model => <option key={model.id} value={model.id}>{model.name}</option>)}
               </select>
             </label>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="[display:grid] [grid-template-columns:1fr_1fr] [gap:12px]">
               <label>
-                <span style={{ display: 'block', marginBottom: '6px' }}>Autonomia</span>
-                <input name="autonomy" type="number" step="0.01" value={form.autonomy} onChange={handleChange} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #d6deea' }} />
+                <span className="[display:block] [margin-bottom:6px]">Autonomia</span>
+                <input name="autonomy" type="number" step="0.01" value={form.autonomy} onChange={handleChange} required className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea]" />
               </label>
               <label>
-                <span style={{ display: 'block', marginBottom: '6px' }}>Peso Max</span>
-                <input name="maxWeight" type="number" step="0.01" value={form.maxWeight} onChange={handleChange} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #d6deea' }} />
+                <span className="[display:block] [margin-bottom:6px]">Peso Max</span>
+                <input name="maxWeight" type="number" step="0.01" value={form.maxWeight} onChange={handleChange} required className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea]" />
               </label>
             </div>
 
-            <label style={{ display: 'block', marginTop: '12px' }}>
-              <span style={{ display: 'block', marginBottom: '6px' }}>Velocidade Media</span>
-              <input name="averageSpeed" type="number" step="0.01" value={form.averageSpeed} onChange={handleChange} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #d6deea' }} />
+            <label className="[display:block] [margin-top:12px]">
+              <span className="[display:block] [margin-bottom:6px]">Velocidade Media</span>
+              <input name="averageSpeed" type="number" step="0.01" value={form.averageSpeed} onChange={handleChange} required className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea]" />
             </label>
 
-            <label style={{ display: 'block', marginTop: '12px' }}>
-              <span style={{ display: 'block', marginBottom: '6px' }}>Hangar armazenado</span>
-              <select name="hangarId" value={form.hangarId} onChange={handleChange} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #d6deea', background: 'white' }}>
+            <label className="[display:block] [margin-top:12px]">
+              <span className="[display:block] [margin-bottom:6px]">Hangar armazenado</span>
+              <select name="hangarId" value={form.hangarId} onChange={handleChange} required className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea] [background:white]">
                 <option value="">Selecione um hangar</option>
-                {hangars.map((hangar) => (
-                  <option key={hangar.id} value={hangar.id}>{hangar.name}</option>
-                ))}
+                {hangars.map(hangar => <option key={hangar.id} value={hangar.id}>{hangar.name}</option>)}
               </select>
             </label>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '18px' }}>
-              <button type="submit" disabled={saving} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '10px', background: '#0f5bd7', color: 'white', cursor: 'pointer' }}>
+            <div className="[display:flex] [gap:10px] [margin-top:18px]">
+              <button type="submit" disabled={saving} className="[flex:1] [padding:12px] [border:none] [border-radius:10px] [background:#0f5bd7] [color:white] [cursor:pointer]">
                 {saving ? 'Salvando...' : editingId ? 'Atualizar' : 'Cadastrar'}
               </button>
-              {editingId && (
-                <button type="button" onClick={resetForm} style={{ padding: '12px 16px', border: '1px solid #d6deea', borderRadius: '10px', background: 'white', cursor: 'pointer' }}>
+              {editingId && <button type="button" onClick={resetForm} className="[padding:12px_16px] [border:1px_solid_#d6deea] [border-radius:10px] [background:white] [cursor:pointer]">
                   Cancelar
-                </button>
-              )}
+                </button>}
             </div>
           </form>
 
-          <section style={{ background: 'white', padding: '24px', borderRadius: '18px', boxShadow: '0 10px 30px rgba(16,35,61,0.08)' }}>
-            <h2 style={{ marginTop: 0 }}>Seus drones</h2>
-            {loading ? (
-              <p>Carregando...</p>
-            ) : drones.length === 0 ? (
-              <p>Voce ainda nao cadastrou nenhum drone.</p>
-            ) : (
-              <div style={{ display: 'grid', gap: '16px' }}>
-                {hangars.map((hangar) => {
-                  const groupedDrones = dronesByHangar[hangar.id] || [];
-
-                  return (
-                    <section key={hangar.id} style={{ padding: '18px', borderRadius: '14px', background: '#f7f9fc' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <section className="[background:white] [padding:24px] [border-radius:18px] [box-shadow:0_10px_30px_rgba(16,35,61,0.08)]">
+            <h2 className="[margin-top:0]">Seus drones</h2>
+            {loading ? <p>Carregando...</p> : drones.length === 0 ? <p>Voce ainda nao cadastrou nenhum drone.</p> : <div className="[display:grid] [gap:16px]">
+                {hangars.map(hangar => {
+              const groupedDrones = dronesByHangar[hangar.id] || [];
+              return <section key={hangar.id} className="[padding:18px] [border-radius:14px] [background:#f7f9fc]">
+                      <div className="[display:flex] [justify-content:space-between] [align-items:center] [margin-bottom:12px]">
                         <div>
-                          <h3 style={{ margin: 0 }}>{hangar.name}</h3>
-                          <p style={{ margin: '4px 0 0', color: '#58708d' }}>Posicao: ({hangar.positionX}, {hangar.positionY})</p>
+                          <h3 className="[margin:0]">{hangar.name}</h3>
+                          <p className="[margin:4px_0_0] [color:#58708d]">Posicao: ({hangar.positionX}, {hangar.positionY})</p>
                         </div>
-                        <span style={{ padding: '6px 10px', borderRadius: '999px', background: '#dbeafe', color: '#0f5bd7', fontWeight: 700 }}>
+                        <span className="[padding:6px_10px] [border-radius:999px] [background:#dbeafe] [color:#0f5bd7] [font-weight:700]">
                           {groupedDrones.length} drone(s)
                         </span>
                       </div>
 
-                      {groupedDrones.length === 0 ? (
-                        <p style={{ margin: 0, color: '#58708d' }}>Nenhum drone armazenado neste hangar.</p>
-                      ) : (
-                        <div style={{ display: 'grid', gap: '10px' }}>
-                          {groupedDrones.map((drone) => (
-                            <article key={drone.id} style={{ padding: '16px', borderRadius: '12px', background: 'white', display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                      {groupedDrones.length === 0 ? <p className="[margin:0] [color:#58708d]">Nenhum drone armazenado neste hangar.</p> : <div className="[display:grid] [gap:10px]">
+                          {groupedDrones.map(drone => <article key={drone.id} className="[padding:16px] [border-radius:12px] [background:white] [display:flex] [justify-content:space-between] [gap:12px]">
                               <div>
-                                <div style={{ fontWeight: 700 }}>{drone.name}</div>
-                                <div style={{ color: '#58708d' }}>Autonomia: {drone.autonomy}</div>
-                                <div style={{ color: '#58708d' }}>Peso Max: {drone.maxWeight}</div>
-                                <div style={{ color: '#58708d' }}>Velocidade Media: {drone.averageSpeed}</div>
+                                <div className="[font-weight:700]">{drone.name}</div>
+                                <div className="[color:#58708d]">Autonomia: {drone.autonomy}</div>
+                                <div className="[color:#58708d]">Peso Max: {drone.maxWeight}</div>
+                                <div className="[color:#58708d]">Velocidade Media: {drone.averageSpeed}</div>
                               </div>
-                              <div style={{ display: 'flex', gap: '8px', alignItems: 'start' }}>
-                                <button onClick={() => handleEdit(drone)} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#dbeafe', cursor: 'pointer' }}>
+                              <div className="[display:flex] [gap:8px] [align-items:start]">
+                                <button onClick={() => handleEdit(drone)} className="[padding:8px_12px] [border:none] [border-radius:8px] [background:#dbeafe] [cursor:pointer]">
                                   Editar
                                 </button>
-                                <button onClick={() => handleDelete(drone.id)} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#fee2e2', cursor: 'pointer' }}>
+                                <button onClick={() => handleDelete(drone.id)} className="[padding:8px_12px] [border:none] [border-radius:8px] [background:#fee2e2] [cursor:pointer]">
                                   Excluir
                                 </button>
                               </div>
-                            </article>
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  );
-                })}
-              </div>
-            )}
+                            </article>)}
+                        </div>}
+                    </section>;
+            })}
+              </div>}
           </section>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Drones;
