@@ -1,6 +1,14 @@
 import React, { useContext, useEffect, useState } from 'react';
-import api from '../services/api';
-import { HangarContext } from '../context/HangarContext';
+import {
+  allocatePendingDeliveries,
+  clearDeliveryQueue,
+  confirmDeliveryDispatch,
+  deleteDelivery,
+  getDeliveryManagement,
+  splitDelivery,
+} from '../../services/deliveryService';
+import { listHangars } from '../../services/hangarService';
+import { HangarContext } from '../../context/HangarContext';
 const deliveryLabels = {
   AGUARDANDO_CONFIRMACAO: 'Aguardando confirmação',
   CONFIRMADA: 'Confirmada',
@@ -38,12 +46,9 @@ const GerenciarEntregas = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await api.get(`/entregas/gerenciamento/${hangarId}`);
-      setDeliveries((response.data.deliveries || []).filter(delivery => delivery.status !== 'EM_DESPACHO' && delivery.status !== 'EM_ROTA').map(delivery => delivery.status === 'NA_FILA' ? {
-        ...delivery,
-        status: 'CONFIRMADA'
-      } : delivery));
-      setDrones(response.data.drones || []);
+      const data = await getDeliveryManagement(hangarId);
+      setDeliveries(data.deliveries);
+      setDrones(data.drones);
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data || 'Nao foi possivel carregar o hangar.');
     } finally {
@@ -51,42 +56,17 @@ const GerenciarEntregas = () => {
     }
   };
   useEffect(() => {
-    api.get('/hangars/me').then(response => setHangars(Array.isArray(response.data) ? response.data : [])).catch(() => setError('Nao foi possivel carregar os hangares.'));
+    listHangars().then(setHangars).catch(() => setError('Nao foi possivel carregar os hangares.'));
   }, []);
   useEffect(() => {
     setPrepared(false);
     loadManagement(selectedHangar);
   }, [selectedHangar]);
-  const allocatePendingDeliveries = (sourceDeliveries, sourceDrones) => {
-    const pending = sourceDeliveries.filter(delivery => delivery.status === 'AGUARDANDO_CONFIRMACAO').sort((a, b) => ({
-      BAIXA: 1,
-      MEDIA: 2,
-      ALTA: 3
-    }[b.priority] || 0) - ({
-      BAIXA: 1,
-      MEDIA: 2,
-      ALTA: 3
-    }[a.priority] || 0));
-    const nextDeliveries = sourceDeliveries.map(delivery => ({
-      ...delivery
-    }));
-    pending.forEach(delivery => {
-      const hangar = hangars.find(item => item.id === selectedHangar);
-      const roundTripDistance = hangar ? 2 * (Math.abs(delivery.destinationX - hangar.positionX) + Math.abs(delivery.destinationY - hangar.positionY)) : Number.POSITIVE_INFINITY;
-      const canEverFit = sourceDrones.some(drone => delivery.weight <= drone.maxWeight && roundTripDistance <= drone.autonomy);
-      const target = nextDeliveries.find(item => item.id === delivery.id);
-      target.status = canEverFit ? 'CONFIRMADA' : 'INVIAVEL';
-      target.droneId = null;
-    });
-    return {
-      deliveries: nextDeliveries,
-      drones: sourceDrones
-    };
-  };
   const prepareDispatch = async () => {
     if (!selectedHangar) return;
     setError('');
-    const allocation = allocatePendingDeliveries(deliveries, drones);
+    const hangar = hangars.find(item => item.id === selectedHangar);
+    const allocation = allocatePendingDeliveries(deliveries, drones, hangar);
     setDeliveries(allocation.deliveries);
     setDrones(allocation.drones);
     setPrepared(true);
@@ -101,15 +81,9 @@ const GerenciarEntregas = () => {
     setError('');
     try {
       const deliveryIds = deliveries.filter(delivery => delivery.status === 'CONFIRMADA').map(delivery => delivery.id);
-      const response = await api.post(`/entregas/gerenciamento/${selectedHangar}/confirmar`, {
-        deliveryIds
-      });
-      const confirmedDeliveries = (response.data.deliveries || []).filter(delivery => delivery.status !== 'EM_DESPACHO' && delivery.status !== 'EM_ROTA').map(delivery => delivery.status === 'NA_FILA' ? {
-        ...delivery,
-        status: 'CONFIRMADA'
-      } : delivery);
-      setDeliveries(confirmedDeliveries);
-      setDrones(response.data.drones || []);
+      const data = await confirmDeliveryDispatch(selectedHangar, deliveryIds);
+      setDeliveries(data.deliveries);
+      setDrones(data.drones);
       setPrepared(false);
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data || 'Nao foi possivel confirmar a movimentacao.');
@@ -122,9 +96,9 @@ const GerenciarEntregas = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await api.post(`/entregas/gerenciamento/${selectedHangar}/limpar-fila`);
-      setDeliveries((response.data.deliveries || []).filter(delivery => delivery.status !== 'EM_DESPACHO' && delivery.status !== 'EM_ROTA'));
-      setDrones(response.data.drones || []);
+      const data = await clearDeliveryQueue(selectedHangar);
+      setDeliveries(data.deliveries);
+      setDrones(data.drones);
       setPrepared(false);
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data || 'Não foi possível limpar a fila.');
@@ -154,11 +128,10 @@ const GerenciarEntregas = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await api.post(`/entregas/${inviableDelivery.id}/repartir`, {
-        weights
-      });
-      const nextDeliveries = [...deliveries.filter(delivery => delivery.id !== inviableDelivery.id), ...response.data];
-      const allocation = allocatePendingDeliveries(nextDeliveries, drones);
+      const parts = await splitDelivery(inviableDelivery.id, weights);
+      const nextDeliveries = [...deliveries.filter(delivery => delivery.id !== inviableDelivery.id), ...parts];
+      const hangar = hangars.find(item => item.id === selectedHangar);
+      const allocation = allocatePendingDeliveries(nextDeliveries, drones, hangar);
       setDeliveries(allocation.deliveries);
       setDrones(allocation.drones);
       setPrepared(true);
@@ -173,7 +146,7 @@ const GerenciarEntregas = () => {
     if (!window.confirm('Deseja excluir esta entrega inviavel?')) return;
     setLoading(true);
     try {
-      await api.delete(`/entregas/${inviableDelivery.id}`);
+      await deleteDelivery(inviableDelivery.id);
       const nextDeliveries = deliveries.filter(delivery => delivery.id !== inviableDelivery.id);
       setDeliveries(nextDeliveries);
       setPrepared(false);

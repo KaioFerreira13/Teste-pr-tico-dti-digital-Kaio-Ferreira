@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
-import { getErrorMessage } from '../utils/errorMessage';
+import {
+  applyModelToDroneForm,
+  deleteDrone,
+  getDroneRegistrationData,
+  groupDronesByHangar,
+  saveDrone,
+  toDroneForm,
+} from '../../services/droneService';
+import { getErrorMessage } from '../../utils/errorMessage';
 const initialForm = {
   name: '',
   autonomy: '',
@@ -22,11 +29,10 @@ const Drones = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [dronesRes, optionsRes] = await Promise.all([api.get('/drones/me'), api.get('/modelos/me')]);
-      setDrones(Array.isArray(dronesRes.data) ? dronesRes.data : []);
-      setModels(Array.isArray(optionsRes.data) ? optionsRes.data : []);
-      const hangarsRes = await api.get('/hangars/me');
-      setHangars(Array.isArray(hangarsRes.data) ? hangarsRes.data : []);
+      const data = await getDroneRegistrationData();
+      setDrones(data.drones);
+      setModels(data.models);
+      setHangars(data.hangars);
     } catch (err) {
       setError(getErrorMessage(err, 'Nao foi possivel carregar os drones.'));
     } finally {
@@ -46,31 +52,7 @@ const Drones = () => {
       value
     } = event.target;
     if (name === 'modelId') {
-      if (!value) {
-        setForm(current => ({
-          ...current,
-          modelId: '',
-          autonomy: '',
-          maxWeight: '',
-          averageSpeed: ''
-        }));
-        return;
-      }
-      const selectedModel = models.find(model => model.id === value);
-      if (!selectedModel) {
-        setForm(current => ({
-          ...current,
-          modelId: value
-        }));
-        return;
-      }
-      setForm(current => ({
-        ...current,
-        modelId: value,
-        autonomy: String(selectedModel.autonomy ?? ''),
-        maxWeight: String(selectedModel.maxWeight ?? ''),
-        averageSpeed: String(selectedModel.averageSpeed ?? '')
-      }));
+      setForm(current => applyModelToDroneForm(current, value, models));
       return;
     }
     setForm(current => ({
@@ -82,20 +64,8 @@ const Drones = () => {
     event.preventDefault();
     setError('');
     setSaving(true);
-    const payload = {
-      name: form.name.trim(),
-      autonomy: Number(form.autonomy),
-      maxWeight: Number(form.maxWeight),
-      averageSpeed: Number(form.averageSpeed),
-      hangarId: form.hangarId,
-      modelId: form.modelId || null
-    };
     try {
-      if (editingId) {
-        await api.put(`/drones/${editingId}`, payload);
-      } else {
-        await api.post('/drones', payload);
-      }
+      await saveDrone(editingId, form);
       resetForm();
       await loadData();
     } catch (err) {
@@ -106,27 +76,17 @@ const Drones = () => {
   };
   const handleEdit = drone => {
     setEditingId(drone.id);
-    setForm({
-      name: drone.name || '',
-      autonomy: drone.autonomy ?? '',
-      maxWeight: drone.maxWeight ?? '',
-      averageSpeed: drone.averageSpeed ?? '',
-      hangarId: drone.hangarId || '',
-      modelId: drone.modelId || ''
-    });
+    setForm(toDroneForm(drone));
   };
   const handleDelete = async id => {
     try {
-      await api.delete(`/drones/${id}`);
+      await deleteDrone(id);
       await loadData();
     } catch (err) {
       setError(getErrorMessage(err, 'Nao foi possivel excluir o drone.'));
     }
   };
-  const dronesByHangar = hangars.reduce((accumulator, hangar) => {
-    accumulator[hangar.id] = drones.filter(drone => drone.hangarId === hangar.id);
-    return accumulator;
-  }, {});
+  const dronesByHangar = groupDronesByHangar(hangars, drones);
   return <div className="[min-height:100%] [background:#f4f7fb] [color:#10233d]">
       <div className="[margin:0_auto]">
         <div className="[display:flex] [justify-content:space-between] [align-items:center] [margin-bottom:24px] [gap:16px]">

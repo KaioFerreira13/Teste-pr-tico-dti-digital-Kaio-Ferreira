@@ -1,7 +1,12 @@
 import React, { useContext, useEffect, useState } from 'react';
-import api from '../services/api';
-import RemainingTime from '../components/RemainingTime';
-import { HangarContext } from '../context/HangarContext';
+import { getDashboardData } from '../../services/dashboardService';
+import {
+  startDroneFreight,
+  unassignDroneDeliveries,
+  updateDroneStatus,
+} from '../../services/droneService';
+import RemainingTime from '../../components/feedback/RemainingTime';
+import { HangarContext } from '../../context/HangarContext';
 const droneStatuses = [{
   value: 'DISPONIVEL',
   label: 'Disponível'
@@ -34,10 +39,10 @@ const GerenciarDrones = () => {
       setError('');
     }
     try {
-      const [hangarsResponse, dronesResponse, deliveriesResponse] = await Promise.all([api.get('/hangars/me'), api.get('/drones/me'), api.get('/entregas/me')]);
-      setHangars(hangarsResponse.data || []);
-      setDrones(dronesResponse.data || []);
-      setDeliveries(deliveriesResponse.data || []);
+      const data = await getDashboardData();
+      setHangars(data.hangars);
+      setDrones(data.drones);
+      setDeliveries(data.deliveries);
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data || 'Não foi possível carregar a gestão de drones.');
     } finally {
@@ -52,10 +57,8 @@ const GerenciarDrones = () => {
   const updateStatus = async (droneId, status) => {
     setError('');
     try {
-      const response = await api.patch(`/drones/${droneId}/status`, {
-        status
-      });
-      setDrones(current => current.map(drone => drone.id === droneId ? response.data : drone));
+      const updatedDrone = await updateDroneStatus(droneId, status);
+      setDrones(current => current.map(drone => drone.id === droneId ? updatedDrone : drone));
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data || 'Não foi possível atualizar o status do drone.');
     }
@@ -75,9 +78,7 @@ const GerenciarDrones = () => {
     if (!window.confirm(`Remover ${deliveryIds.length} entrega(s) do drone e devolvê-las para aguardando confirmação?`)) return;
     setError('');
     try {
-      await api.post(`/drones/${droneId}/entregas/remover`, {
-        deliveryIds
-      });
+      await unassignDroneDeliveries(droneId, deliveryIds);
       setSelectedByDrone(current => ({
         ...current,
         [droneId]: []
@@ -91,8 +92,8 @@ const GerenciarDrones = () => {
     if (!window.confirm('Confirmar o início deste frete?')) return;
     setError('');
     try {
-      const response = await api.post(`/drones/${droneId}/iniciar-frete`);
-      setDrones(current => current.map(drone => drone.id === droneId ? response.data : drone));
+      const updatedDrone = await startDroneFreight(droneId);
+      setDrones(current => current.map(drone => drone.id === droneId ? updatedDrone : drone));
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data || 'Não foi possível iniciar o frete.');
     }

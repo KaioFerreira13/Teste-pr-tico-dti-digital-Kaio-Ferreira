@@ -1,8 +1,11 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { HangarContext } from '../context/HangarContext';
-import api from '../services/api';
-import { getErrorMessage } from '../utils/errorMessage';
+import { HangarContext } from '../../context/HangarContext';
+import {
+  getDroneDashboardData,
+  getDroneMetrics,
+} from '../../services/dashboardService';
+import { getErrorMessage } from '../../utils/errorMessage';
 const statusColumns = [{
   value: 'DISPONIVEL',
   label: 'Disponivel'
@@ -33,11 +36,11 @@ const DashboardDrones = () => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [dronesRes, deliveriesRes, hangarsRes, modelsRes] = await Promise.all([api.get('/drones/me'), api.get('/entregas/me'), api.get('/hangars/me'), api.get('/modelos/me')]);
-        setDrones(Array.isArray(dronesRes.data) ? dronesRes.data : []);
-        setDeliveries(Array.isArray(deliveriesRes.data) ? deliveriesRes.data : []);
-        setHangars(Array.isArray(hangarsRes.data) ? hangarsRes.data : []);
-        setModels(Array.isArray(modelsRes.data) ? modelsRes.data : []);
+        const data = await getDroneDashboardData();
+        setDrones(data.drones);
+        setDeliveries(data.deliveries);
+        setHangars(data.hangars);
+        setModels(data.models);
       } catch (err) {
         setError(getErrorMessage(err, 'Nao foi possivel carregar a dashboard de drones.'));
       } finally {
@@ -47,33 +50,15 @@ const DashboardDrones = () => {
     loadData();
   }, []);
   const selectedHangar = useMemo(() => hangars.find(hangar => hangar.id === selectedHangarId) || hangars[0] || null, [hangars, selectedHangarId]);
-  const groupedDrones = useMemo(() => statusColumns.map(column => ({
-    ...column,
-    items: drones.filter(drone => (drone.status || 'DISPONIVEL') === column.value)
-  })), [drones]);
-  const metrics = useMemo(() => {
-    const total = drones.length;
-    const available = drones.filter(drone => !drone.status || drone.status === 'DISPONIVEL').length;
-    const inDispatch = drones.filter(drone => drone.status === 'EM_DESPACHO').length;
-    const inRoute = drones.filter(drone => drone.status === 'EM_ROTA').length;
-    const totalLoad = drones.reduce((sum, drone) => sum + Number(drone.currentLoad || 0), 0);
-    return [{
-      label: 'Drones cadastrados',
-      value: total
-    }, {
-      label: 'Disponiveis',
-      value: available
-    }, {
-      label: 'Em despacho',
-      value: inDispatch
-    }, {
-      label: 'Em rota',
-      value: inRoute
-    }, {
-      label: 'Carga total alocada',
-      value: `${totalLoad.toFixed(1)} kg`
-    }];
-  }, [drones]);
+  const groupedDrones = useMemo(
+    () =>
+      statusColumns.map(column => ({
+        ...column,
+        items: drones.filter(drone => (drone.status || 'DISPONIVEL') === column.value),
+      })),
+    [drones],
+  );
+  const metrics = useMemo(() => getDroneMetrics(drones), [drones]);
   const visibleDeliveries = useMemo(() => deliveries.filter(delivery => !selectedHangar || delivery.hangarId === selectedHangar.id), [deliveries, selectedHangar]);
   const visibleDrones = useMemo(() => drones.filter(drone => !selectedHangar || drone.hangarId === selectedHangar.id), [drones, selectedHangar]);
   const modelById = useMemo(() => {

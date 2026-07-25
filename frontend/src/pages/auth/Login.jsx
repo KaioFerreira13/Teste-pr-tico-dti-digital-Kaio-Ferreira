@@ -1,7 +1,11 @@
 import React, { useContext, useState } from 'react';
 import { Button, Card, Input } from '@heroui/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../../context/AuthContext';
+import {
+  AUTH_FIELD_LIMITS,
+  validateLogin,
+} from '../../services/authValidation';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -14,8 +18,13 @@ const Login = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
+    const validationError = validateLogin({ email, password });
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setLoading(true);
-    const success = await login(email, password);
+    const success = await login(email.trim(), password);
     setLoading(false);
     if (success) navigate('/dashboard/geral');
     else setError('Credenciais invalidas. Tente novamente.');
@@ -38,8 +47,8 @@ const Login = () => {
         <Card.Content className="px-7 py-6">
           {error && <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><i className="bi bi-exclamation-circle mr-2" />{error}</div>}
           <form onSubmit={handleSubmit} className="grid gap-4">
-            <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@empresa.com" aria-label="Email" required className="w-full" />
-            <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Sua senha" aria-label="Senha" required className="w-full" />
+            <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@empresa.com" aria-label="Email" autoComplete="email" maxLength={AUTH_FIELD_LIMITS.email.max} required className="w-full" />
+            <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Sua senha" aria-label="Senha" autoComplete="current-password" maxLength={AUTH_FIELD_LIMITS.password.max} required className="w-full" />
             <Button type="submit" variant="primary" fullWidth isDisabled={loading} className="mt-2 bg-ocean text-white">
               {loading ? <><i className="bi bi-arrow-repeat animate-spin" /> Entrando...</> : <><i className="bi bi-box-arrow-in-right" /> Entrar</>}
             </Button>

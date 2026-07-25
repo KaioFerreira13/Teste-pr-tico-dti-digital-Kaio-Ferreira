@@ -1,7 +1,10 @@
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import RemainingTime, { formatTime, getRemainingSeconds } from './RemainingTime';
+import RemainingTime, {
+  formatTime,
+  getRemainingSeconds,
+} from '../../components/feedback/RemainingTime';
 
 describe('RemainingTime', () => {
   beforeEach(() => {

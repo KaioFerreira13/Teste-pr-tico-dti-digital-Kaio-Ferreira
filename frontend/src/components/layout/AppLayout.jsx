@@ -1,9 +1,9 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Button, Input } from '@heroui/react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
-import { HangarContext } from '../context/HangarContext';
-import api from '../services/api';
+import { AuthContext } from '../../context/AuthContext';
+import { HangarContext } from '../../context/HangarContext';
+import { listHangars } from '../../services/hangarService';
 
 const menuGroups = [
   {
@@ -57,9 +57,8 @@ const AppLayout = ({ children }) => {
   const [hangars, setHangars] = useState([]);
 
   useEffect(() => {
-    api.get('/hangars/me')
-      .then((response) => {
-        const loadedHangars = Array.isArray(response.data) ? response.data : [];
+    listHangars()
+      .then((loadedHangars) => {
         setHangars(loadedHangars);
         if (selectedHangarId && !loadedHangars.some((hangar) => hangar.id === selectedHangarId)) {
           setSelectedHangarId('');

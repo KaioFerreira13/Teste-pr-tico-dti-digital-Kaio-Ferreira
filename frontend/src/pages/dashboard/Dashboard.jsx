@@ -1,9 +1,13 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { HangarContext } from '../context/HangarContext';
-import api from '../services/api';
-import { getErrorMessage } from '../utils/errorMessage';
-import HangarRouteMap from '../components/HangarRouteMap';
+import { HangarContext } from '../../context/HangarContext';
+import {
+  getDashboardData,
+  getDeliveryMetrics,
+  getDroneRanking,
+} from '../../services/dashboardService';
+import { getErrorMessage } from '../../utils/errorMessage';
+import HangarRouteMap from '../../components/maps/HangarRouteMap';
 const Dashboard = () => {
   const [deliveries, setDeliveries] = useState([]);
   const [drones, setDrones] = useState([]);
@@ -17,10 +21,10 @@ const Dashboard = () => {
     const loadDashboard = async () => {
       setLoading(true);
       try {
-        const [deliveriesRes, dronesRes, hangarsRes] = await Promise.all([api.get('/entregas/me'), api.get('/drones/me'), api.get('/hangars/me')]);
-        setDeliveries(Array.isArray(deliveriesRes.data) ? deliveriesRes.data : []);
-        setDrones(Array.isArray(dronesRes.data) ? dronesRes.data : []);
-        setHangars(Array.isArray(hangarsRes.data) ? hangarsRes.data : []);
+        const data = await getDashboardData();
+        setDeliveries(data.deliveries);
+        setDrones(data.drones);
+        setHangars(data.hangars);
       } catch (err) {
         setError(getErrorMessage(err, 'Nao foi possivel carregar a dashboard.'));
       } finally {
@@ -30,49 +34,8 @@ const Dashboard = () => {
     loadDashboard();
   }, []);
   const selectedHangar = useMemo(() => hangars.find(hangar => hangar.id === selectedHangarId) || hangars[0] || null, [hangars, selectedHangarId]);
-  const metrics = useMemo(() => {
-    const total = deliveries.length;
-    const delivered = deliveries.filter(item => item.status === 'ENTREGUE').length;
-    const highPriority = deliveries.filter(item => item.priority === 'ALTA').length;
-    const mediumPriority = deliveries.filter(item => item.priority === 'MEDIA').length;
-    const uniqueRecipients = new Set(deliveries.map(item => item.recipientName).filter(Boolean)).size;
-    const deliveredDurations = deliveries.filter(item => item.status === 'ENTREGUE').map(item => {
-      const drone = drones.find(entry => entry.id === item.droneId);
-      const routeDistance = Number(drone?.routeDistance || 0);
-      const averageSpeed = Number(drone?.averageSpeed || 0);
-      if (!routeDistance || !averageSpeed) return null;
-      return routeDistance / averageSpeed * 60 * 60 * 1000;
-    }).filter(value => value !== null);
-    const averageDeliveryMinutes = deliveredDurations.length ? Math.round(deliveredDurations.reduce((sum, value) => sum + value, 0) / deliveredDurations.length / 60000) : 0;
-    return [{
-      label: 'Entregas cadastradas',
-      value: total
-    }, {
-      label: 'Entregas realizadas',
-      value: delivered
-    }, {
-      label: 'Tempo medio por entrega',
-      value: delivered ? `${averageDeliveryMinutes} min` : '0 min'
-    }, {
-      label: 'Prioridade alta',
-      value: highPriority
-    }];
-  }, [deliveries, drones]);
-  const droneRanking = useMemo(() => {
-    return drones.map(drone => {
-      const deliveredCount = deliveries.filter(delivery => delivery.droneId === drone.id && delivery.status === 'ENTREGUE').length;
-      const routeDistance = Number(drone.routeDistance || 0);
-      const averageSpeed = Number(drone.averageSpeed || 0);
-      const efficiencyScore = deliveredCount / Math.max(routeDistance, 1);
-      return {
-        drone,
-        deliveredCount,
-        routeDistance,
-        averageSpeed,
-        efficiencyScore
-      };
-    }).filter(item => item.deliveredCount > 0).sort((a, b) => b.efficiencyScore - a.efficiencyScore).slice(0, 5);
-  }, [deliveries, drones]);
+  const metrics = useMemo(() => getDeliveryMetrics(deliveries, drones), [deliveries, drones]);
+  const droneRanking = useMemo(() => getDroneRanking(deliveries, drones), [deliveries, drones]);
   const mapDeliveries = useMemo(() => deliveries.filter(delivery => !selectedHangar || delivery.hangarId === selectedHangar.id), [deliveries, selectedHangar]);
   const mapDrones = useMemo(() => drones.filter(drone => !selectedHangar || drone.hangarId === selectedHangar.id), [drones, selectedHangar]);
   return <div className="[min-height:100%] [background:linear-gradient(180deg,_#eef4ff_0%,_#f8fafc_100%)] [color:#10233d]">

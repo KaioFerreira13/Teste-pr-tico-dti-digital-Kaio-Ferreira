@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
-import { getErrorMessage } from '../utils/errorMessage';
+import {
+  groupDeliveriesByStatus,
+  listDeliveries,
+} from '../../services/deliveryService';
+import { getErrorMessage } from '../../utils/errorMessage';
 const statusColumns = [{
   value: 'AGUARDANDO_CONFIRMACAO',
   label: 'Aguardando confirmação'
@@ -23,8 +26,7 @@ const PedidosPorEstado = () => {
     const loadDeliveries = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/entregas/me');
-        setDeliveries(Array.isArray(response.data) ? response.data : []);
+        setDeliveries(await listDeliveries());
       } catch (err) {
         setError(getErrorMessage(err, 'Nao foi possivel carregar os pedidos por estado.'));
       } finally {
@@ -34,10 +36,7 @@ const PedidosPorEstado = () => {
     loadDeliveries();
   }, []);
   const groupedDeliveries = useMemo(() => {
-    return statusColumns.map(column => ({
-      ...column,
-      items: deliveries.filter(delivery => delivery.status === column.value)
-    }));
+    return groupDeliveriesByStatus(deliveries, statusColumns);
   }, [deliveries]);
   return <div className="[min-height:100%] [background:linear-gradient(180deg,_#eef4ff_0%,_#f8fafc_100%)] [color:#10233d]">
       <div className="[max-width:1240px] [margin:0_auto]">

@@ -1,33 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
-import { getErrorMessage } from '../utils/errorMessage';
+import {
+  deleteHangar,
+  listHangars,
+  saveHangar,
+  toHangarForm,
+} from '../../services/hangarService';
+import { getErrorMessage } from '../../utils/errorMessage';
 const initialForm = {
   name: '',
-  autonomy: '',
-  maxWeight: '',
-  averageSpeed: ''
+  positionX: '',
+  positionY: ''
 };
-const Modelos = () => {
-  const [models, setModels] = useState([]);
+const Hangars = () => {
+  const [hangars, setHangars] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const loadModels = async () => {
+  const loadHangars = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/modelos/me');
-      setModels(Array.isArray(response.data) ? response.data : []);
+      setHangars(await listHangars());
     } catch (err) {
-      setError(getErrorMessage(err, 'Nao foi possivel carregar os modelos.'));
+      setError(getErrorMessage(err, 'Nao foi possivel carregar seus hangares.'));
     } finally {
       setLoading(false);
     }
   };
   useEffect(() => {
-    loadModels();
+    loadHangars();
   }, []);
   const resetForm = () => {
     setForm(initialForm);
@@ -47,49 +50,34 @@ const Modelos = () => {
     event.preventDefault();
     setError('');
     setSaving(true);
-    const payload = {
-      name: form.name.trim(),
-      autonomy: Number(form.autonomy),
-      maxWeight: Number(form.maxWeight),
-      averageSpeed: Number(form.averageSpeed)
-    };
     try {
-      if (editingId) {
-        await api.put(`/modelos/${editingId}`, payload);
-      } else {
-        await api.post('/modelos', payload);
-      }
+      await saveHangar(editingId, form);
       resetForm();
-      await loadModels();
+      await loadHangars();
     } catch (err) {
-      setError(getErrorMessage(err, 'Nao foi possivel salvar o modelo.'));
+      setError(getErrorMessage(err, 'Nao foi possivel salvar o hangar.'));
     } finally {
       setSaving(false);
     }
   };
-  const handleEdit = model => {
-    setEditingId(model.id);
-    setForm({
-      name: model.name || '',
-      autonomy: model.autonomy ?? '',
-      maxWeight: model.maxWeight ?? '',
-      averageSpeed: model.averageSpeed ?? ''
-    });
+  const handleEdit = hangar => {
+    setEditingId(hangar.id);
+    setForm(toHangarForm(hangar));
   };
   const handleDelete = async id => {
     try {
-      await api.delete(`/modelos/${id}`);
-      await loadModels();
+      await deleteHangar(id);
+      await loadHangars();
     } catch (err) {
-      setError(getErrorMessage(err, 'Nao foi possivel excluir o modelo.'));
+      setError(getErrorMessage(err, 'Nao foi possivel excluir o hangar.'));
     }
   };
   return <div className="[min-height:100%] [background:#f4f7fb] [color:#10233d]">
       <div className="[max-width:1120px] [margin:0_auto]">
         <div className="[display:flex] [justify-content:space-between] [align-items:center] [margin-bottom:24px] [gap:16px]">
           <div>
-            <h1 className="[margin:0]">Modelos</h1>
-            <p className="[margin:8px_0_0] [color:#58708d]">Cadastre os modelos de drone do seu operador.</p>
+            <h1 className="[margin:0]">Hangares</h1>
+            <p className="[margin:8px_0_0] [color:#58708d]">Cadastre quantos hangares quiser e mantenha cada posição única.</p>
           </div>
           <Link to="/dashboard" className="[padding:10px_16px] [border-radius:10px] [background:#0f5bd7] [color:white] [text-decoration:none]">
             Voltar ao dashboard
@@ -100,25 +88,21 @@ const Modelos = () => {
 
         <div className="[display:grid] [grid-template-columns:1fr_1.1fr] [gap:20px]">
           <form onSubmit={handleSubmit} className="[background:white] [padding:24px] [border-radius:18px] [box-shadow:0_10px_30px_rgba(16,35,61,0.08)]">
-            <h2 className="[margin-top:0]">{editingId ? 'Editar modelo' : 'Novo modelo'}</h2>
+            <h2 className="[margin-top:0]">{editingId ? 'Editar hangar' : 'Novo hangar'}</h2>
             <label className="[display:block] [margin-bottom:12px]">
               <span className="[display:block] [margin-bottom:6px]">Nome</span>
               <input name="name" value={form.name} onChange={handleChange} required className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea]" />
             </label>
             <div className="[display:grid] [grid-template-columns:1fr_1fr] [gap:12px]">
               <label>
-                <span className="[display:block] [margin-bottom:6px]">Autonomia</span>
-                <input name="autonomy" type="number" step="0.01" value={form.autonomy} onChange={handleChange} required className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea]" />
+                <span className="[display:block] [margin-bottom:6px]">Posição X</span>
+                <input name="positionX" type="number" value={form.positionX} onChange={handleChange} required className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea]" />
               </label>
               <label>
-                <span className="[display:block] [margin-bottom:6px]">Peso Max</span>
-                <input name="maxWeight" type="number" step="0.01" value={form.maxWeight} onChange={handleChange} required className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea]" />
+                <span className="[display:block] [margin-bottom:6px]">Posição Y</span>
+                <input name="positionY" type="number" value={form.positionY} onChange={handleChange} required className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea]" />
               </label>
             </div>
-            <label className="[display:block] [margin-top:12px]">
-              <span className="[display:block] [margin-bottom:6px]">Velocidade Media</span>
-              <input name="averageSpeed" type="number" step="0.01" value={form.averageSpeed} onChange={handleChange} required className="[width:100%] [padding:12px] [border-radius:10px] [border:1px_solid_#d6deea]" />
-            </label>
             <div className="[display:flex] [gap:10px] [margin-top:18px]">
               <button type="submit" disabled={saving} className="[flex:1] [padding:12px] [border:none] [border-radius:10px] [background:#0f5bd7] [color:white] [cursor:pointer]">
                 {saving ? 'Salvando...' : editingId ? 'Atualizar' : 'Cadastrar'}
@@ -130,20 +114,18 @@ const Modelos = () => {
           </form>
 
           <section className="[background:white] [padding:24px] [border-radius:18px] [box-shadow:0_10px_30px_rgba(16,35,61,0.08)]">
-            <h2 className="[margin-top:0]">Seus modelos</h2>
-            {loading ? <p>Carregando...</p> : models.length === 0 ? <p>Você ainda não cadastrou nenhum modelo.</p> : <div className="[display:grid] [gap:12px]">
-                {models.map(model => <article key={model.id} className="[padding:16px] [border-radius:12px] [background:#f7f9fc] [display:flex] [justify-content:space-between] [gap:12px]">
+            <h2 className="[margin-top:0]">Seus hangares</h2>
+            {loading ? <p>Carregando...</p> : hangars.length === 0 ? <p>Você ainda não cadastrou nenhum hangar.</p> : <div className="[display:grid] [gap:12px]">
+                {hangars.map(hangar => <article key={hangar.id} className="[padding:16px] [border-radius:12px] [background:#f7f9fc] [display:flex] [justify-content:space-between] [gap:12px]">
                     <div>
-                      <div className="[font-weight:700]">{model.name}</div>
-                      <div className="[color:#58708d]">Autonomia: {model.autonomy}</div>
-                      <div className="[color:#58708d]">Peso Max: {model.maxWeight}</div>
-                      <div className="[color:#58708d]">Velocidade Media: {model.averageSpeed}</div>
+                      <div className="[font-weight:700]">{hangar.name}</div>
+                      <div className="[color:#58708d]">Posição: ({hangar.positionX}, {hangar.positionY})</div>
                     </div>
                     <div className="[display:flex] [gap:8px] [align-items:start]">
-                      <button onClick={() => handleEdit(model)} className="[padding:8px_12px] [border:none] [border-radius:8px] [background:#dbeafe] [cursor:pointer]">
+                      <button onClick={() => handleEdit(hangar)} className="[padding:8px_12px] [border:none] [border-radius:8px] [background:#dbeafe] [cursor:pointer]">
                         Editar
                       </button>
-                      <button onClick={() => handleDelete(model.id)} className="[padding:8px_12px] [border:none] [border-radius:8px] [background:#fee2e2] [cursor:pointer]">
+                      <button onClick={() => handleDelete(hangar.id)} className="[padding:8px_12px] [border:none] [border-radius:8px] [background:#fee2e2] [cursor:pointer]">
                         Excluir
                       </button>
                     </div>
@@ -154,4 +136,4 @@ const Modelos = () => {
       </div>
     </div>;
 };
-export default Modelos;
+export default Hangars;

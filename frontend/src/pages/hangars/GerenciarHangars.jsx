@@ -1,8 +1,12 @@
 import React, { useContext, useEffect, useState } from 'react';
-import api from '../services/api';
-import HangarRouteMap from '../components/HangarRouteMap';
-import RemainingTime from '../components/RemainingTime';
-import { HangarContext } from '../context/HangarContext';
+import { getDashboardData } from '../../services/dashboardService';
+import {
+  resetDroneOperation,
+  startDroneFreight,
+} from '../../services/droneService';
+import HangarRouteMap from '../../components/maps/HangarRouteMap';
+import RemainingTime from '../../components/feedback/RemainingTime';
+import { HangarContext } from '../../context/HangarContext';
 const GerenciarHangars = () => {
   const [hangars, setHangars] = useState([]);
   const [drones, setDrones] = useState([]);
@@ -16,8 +20,8 @@ const GerenciarHangars = () => {
     if (!window.confirm('Confirmar o início deste frete?')) return;
     setError('');
     try {
-      const response = await api.post(`/drones/${droneId}/iniciar-frete`);
-      setDrones(current => current.map(drone => drone.id === droneId ? response.data : drone));
+      const updatedDrone = await startDroneFreight(droneId);
+      setDrones(current => current.map(drone => drone.id === droneId ? updatedDrone : drone));
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data || 'Não foi possível iniciar o frete.');
     }
@@ -27,8 +31,8 @@ const GerenciarHangars = () => {
     if (!window.confirm(`Resetar o drone ${drone?.name || ''}? Todas as entregas alocadas voltarão para aguardando confirmação.`)) return;
     setError('');
     try {
-      const response = await api.post(`/drones/${droneId}/reset`);
-      setDrones(current => current.map(item => item.id === droneId ? response.data : item));
+      const updatedDrone = await resetDroneOperation(droneId);
+      setDrones(current => current.map(item => item.id === droneId ? updatedDrone : item));
       setDeliveries(current => current.map(delivery => delivery.droneId === droneId ? {
         ...delivery,
         droneId: null,
@@ -40,10 +44,10 @@ const GerenciarHangars = () => {
   };
   const loadData = (silent = false) => {
     if (!silent) setLoading(true);
-    Promise.all([api.get('/hangars/me'), api.get('/drones/me'), api.get('/entregas/me')]).then(([hangarsResponse, dronesResponse, deliveriesResponse]) => {
-      setHangars(hangarsResponse.data || []);
-      setDrones(dronesResponse.data || []);
-      setDeliveries(deliveriesResponse.data || []);
+    getDashboardData().then(data => {
+      setHangars(data.hangars);
+      setDrones(data.drones);
+      setDeliveries(data.deliveries);
     }).catch(err => setError(err.response?.data?.message || err.response?.data || 'Não foi possível carregar os hangares.')).finally(() => {
       if (!silent) setLoading(false);
     });

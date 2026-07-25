@@ -1,7 +1,12 @@
 import React, { useContext, useState } from 'react';
 import { Button, Card, Input } from '@heroui/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../../context/AuthContext';
+import {
+  AUTH_FIELD_LIMITS,
+  getPasswordRequirements,
+  validateRegistration,
+} from '../../services/authValidation';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -12,13 +17,19 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const { register } = useContext(AuthContext);
   const navigate = useNavigate();
+  const passwordRequirements = getPasswordRequirements(password);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setSuccess('');
+    const validationError = validateRegistration({ name, email, password });
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setLoading(true);
-    const registered = await register(name, email, password);
+    const registered = await register(name.trim(), email.trim(), password);
     setLoading(false);
     if (registered) {
       setSuccess('Cadastro realizado. Redirecionando para o login...');
@@ -44,9 +55,17 @@ const Register = () => {
           {error && <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><i className="bi bi-exclamation-circle mr-2" />{error}</div>}
           {success && <div role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"><i className="bi bi-check-circle mr-2" />{success}</div>}
           <form onSubmit={handleSubmit} className="grid gap-4">
-            <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome completo" aria-label="Nome" required />
-            <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@empresa.com" aria-label="Email" required />
-            <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Crie uma senha" aria-label="Senha" required />
+            <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome completo" aria-label="Nome" autoComplete="name" minLength={AUTH_FIELD_LIMITS.name.min} maxLength={AUTH_FIELD_LIMITS.name.max} required />
+            <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@empresa.com" aria-label="Email" autoComplete="email" maxLength={AUTH_FIELD_LIMITS.email.max} required />
+            <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Crie uma senha" aria-label="Senha" autoComplete="new-password" minLength={AUTH_FIELD_LIMITS.password.min} maxLength={AUTH_FIELD_LIMITS.password.max} required />
+            <ul aria-label="Requisitos da senha" className="grid gap-1 text-xs text-slate-copy">
+              {passwordRequirements.map(requirement => (
+                <li key={requirement.label} className={requirement.valid ? 'text-emerald-700' : ''}>
+                  <i className={`bi ${requirement.valid ? 'bi-check-circle-fill' : 'bi-circle'} mr-2`} />
+                  {requirement.label}
+                </li>
+              ))}
+            </ul>
             <Button type="submit" variant="primary" fullWidth isDisabled={loading} className="mt-2 bg-ocean text-white">
               {loading ? <><i className="bi bi-arrow-repeat animate-spin" /> Cadastrando...</> : <><i className="bi bi-person-check" /> Cadastrar</>}
             </Button>

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isTokenValid } from './AuthContext';
+import { isTokenValid } from '../../services/authService';
 
 const tokenWithPayload = (payload) => {
   const encoded = btoa(JSON.stringify(payload))

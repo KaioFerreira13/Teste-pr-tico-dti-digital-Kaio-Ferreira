@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
-import { getErrorMessage } from '../utils/errorMessage';
+import {
+  deleteDelivery,
+  getDeliveryRegistrationData,
+  getEditableDeliveries,
+  groupDeliveriesByStatus,
+  saveDelivery,
+  toDeliveryForm,
+} from '../../services/deliveryService';
+import { getErrorMessage } from '../../utils/errorMessage';
 const priorityOptions = [{
   value: 'BAIXA',
   label: 'Baixa'
@@ -44,9 +51,9 @@ const Entregas = () => {
   const loadDeliveries = async () => {
     setLoading(true);
     try {
-      const [deliveriesRes, hangarsRes] = await Promise.all([api.get('/entregas/me'), api.get('/hangars/me')]);
-      setDeliveries(Array.isArray(deliveriesRes.data) ? deliveriesRes.data : []);
-      setHangars(Array.isArray(hangarsRes.data) ? hangarsRes.data : []);
+      const data = await getDeliveryRegistrationData();
+      setDeliveries(data.deliveries);
+      setHangars(data.hangars);
     } catch (err) {
       setError(getErrorMessage(err, 'Nao foi possivel carregar as entregas.'));
     } finally {
@@ -74,20 +81,8 @@ const Entregas = () => {
     event.preventDefault();
     setError('');
     setSaving(true);
-    const payload = {
-      weight: Number(form.weight),
-      destinationX: Number(form.destinationX),
-      destinationY: Number(form.destinationY),
-      priority: form.priority,
-      recipientName: form.recipientName.trim(),
-      hangarId: form.hangarId
-    };
     try {
-      if (editingId) {
-        await api.put(`/entregas/${editingId}`, payload);
-      } else {
-        await api.post('/entregas', payload);
-      }
+      await saveDelivery(editingId, form);
       resetForm();
       await loadDeliveries();
     } catch (err) {
@@ -98,39 +93,26 @@ const Entregas = () => {
   };
   const handleEdit = delivery => {
     setEditingId(delivery.id);
-    setForm({
-      weight: delivery.weight ?? '',
-      destinationX: delivery.destinationX ?? '',
-      destinationY: delivery.destinationY ?? '',
-      priority: delivery.priority || 'MEDIA',
-      recipientName: delivery.recipientName || '',
-      hangarId: delivery.hangarId || ''
-    });
+    setForm(toDeliveryForm(delivery));
     setActiveTab('editar');
   };
   const handleDelete = async id => {
     try {
-      await api.delete(`/entregas/${id}`);
+      await deleteDelivery(id);
       await loadDeliveries();
     } catch (err) {
       setError(getErrorMessage(err, 'Nao foi possivel excluir a entrega.'));
     }
   };
-  const sortedDeliveries = useMemo(() => {
-    return deliveries.filter(delivery => delivery.status !== 'EM_DESPACHO' && delivery.status !== 'ENTREGUE').sort((a, b) => {
-      const priorityWeight = {
-        ALTA: 0,
-        MEDIA: 1,
-        BAIXA: 2
-      };
-      return (priorityWeight[a.priority] ?? 3) - (priorityWeight[b.priority] ?? 3);
-    });
-  }, [deliveries]);
-  const deliveriesByStatus = useMemo(() => Object.entries(statusLabels).map(([status, label]) => ({
-    status,
-    label,
-    items: deliveries.filter(delivery => delivery.status === status)
-  })), [deliveries]);
+  const sortedDeliveries = useMemo(() => getEditableDeliveries(deliveries), [deliveries]);
+  const deliveriesByStatus = useMemo(
+    () =>
+      groupDeliveriesByStatus(
+        deliveries,
+        Object.entries(statusLabels).map(([value, label]) => ({ value, label })),
+      ).map(group => ({ ...group, status: group.value })),
+    [deliveries],
+  );
   return <div className="[min-height:100%] [background:#f4f7fb] [color:#10233d]">
       <div className="[max-width:1120px] [margin:0_auto]">
         <div className="[display:flex] [justify-content:space-between] [align-items:center] [margin-bottom:24px] [gap:16px]">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getErrorMessage } from './errorMessage';
+import { getErrorMessage } from '../../utils/errorMessage';
 
 describe('getErrorMessage', () => {
   it('returns the fallback when the server has no response data', () => {
