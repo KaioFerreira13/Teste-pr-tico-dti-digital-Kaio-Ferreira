@@ -183,6 +183,7 @@ public class EntregaController {
         }
 
         Hangar hangar = getOwnedHangar(request.getHangarId(), user);
+        Integer codigo = nextDeliveryCode();
 
         Entrega entrega = new Entrega(
                 request.getWeight(),
@@ -193,6 +194,7 @@ public class EntregaController {
                 hangar.getId(),
                 user.getId()
         );
+        entrega.setCodigo(codigo);
 
         return ResponseEntity.ok(toResponse(entregaRepository.save(entrega)));
     }
@@ -265,6 +267,7 @@ public class EntregaController {
     private EntregaResponse toResponse(Entrega entrega) {
         return new EntregaResponse(
                 entrega.getId(),
+                entrega.getCodigo(),
                 entrega.getWeight(),
                 entrega.getDestinationX(),
                 entrega.getDestinationY(),
@@ -304,9 +307,13 @@ public class EntregaController {
             return ResponseEntity.badRequest().body("A soma das particoes deve ser igual ao peso total da entrega.");
         }
 
+        int nextCode = nextDeliveryCode();
         List<Entrega> partitions = request.weights().stream().map(weight -> new Entrega(
                 weight, original.getDestinationX(), original.getDestinationY(), original.getPriority(), original.getRecipientName(), original.getHangarId(), original.getUserId()
         )).toList();
+        for (int index = 0; index < partitions.size(); index++) {
+            partitions.get(index).setCodigo(nextCode + index);
+        }
         entregaRepository.delete(original);
         return ResponseEntity.ok(partitions.stream().map(entregaRepository::save).map(this::toResponse).toList());
     }
@@ -318,4 +325,11 @@ public class EntregaController {
     public record ManagementResponse(List<EntregaResponse> deliveries, List<DroneResponse> drones) {}
     public record ConfirmRequest(List<String> deliveryIds) {}
     public record SplitRequest(List<Double> weights) {}
+
+    private int nextDeliveryCode() {
+        return entregaRepository.findTopByOrderByCodigoDesc()
+                .map(Entrega::getCodigo)
+                .map(code -> code + 1)
+                .orElse(0);
+    }
 }

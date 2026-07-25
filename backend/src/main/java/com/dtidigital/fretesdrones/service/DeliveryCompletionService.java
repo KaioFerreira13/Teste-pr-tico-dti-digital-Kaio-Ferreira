@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.util.List;
 
 @Service
@@ -30,6 +31,7 @@ public class DeliveryCompletionService {
     @Scheduled(fixedDelay = 1000)
     public void completeFinishedRoutes() {
         Instant now = Instant.now();
+        updateBatteriesInRoute(now);
         entregaRepository.findAll().stream()
                 .filter(delivery -> delivery.getStatus() == DeliveryStatus.EM_DESPACHO)
                 .filter(delivery -> delivery.getEstimatedDeliveryAt() != null && !delivery.getEstimatedDeliveryAt().isAfter(now))
@@ -43,10 +45,62 @@ public class DeliveryCompletionService {
                 .toList();
 
         for (Drone drone : finishedDrones) {
-            drone.setStatus(DroneStatus.DISPONIVEL);
+            double batteryLevel = drone.getRouteStartingBatteryLevel() == null
+                    ? (drone.getBatteryLevel() == null ? 100.0 : drone.getBatteryLevel())
+                    : drone.getRouteStartingBatteryLevel();
+            double consumedBattery = drone.getAutonomy() == null || drone.getAutonomy() <= 0
+                    ? 100.0
+                    : ((drone.getRouteDistance() == null ? 0.0 : drone.getRouteDistance()) / drone.getAutonomy()) * 100.0;
+            drone.setBatteryLevel(Math.max(0.0, batteryLevel - consumedBattery));
+            drone.setRouteStartingBatteryLevel(null);
+            drone.setStatus(DroneStatus.RECARREGANDO);
+            drone.setChargingStartedAt(now);
             drone.setCurrentLoad(0.0);
             routePlanningService.clear(drone);
-            allocationService.allocateConfirmed(drone.getUserId(), drone.getHangarId());
         }
+
+        List<Drone> chargingDrones = droneRepository.findAll().stream()
+                .filter(drone -> drone.getStatus() == DroneStatus.RECARREGANDO)
+                .filter(drone -> drone.getChargingStartedAt() != null)
+                .toList();
+        for (Drone drone : chargingDrones) {
+            double elapsedMinutes = Duration.between(drone.getChargingStartedAt(), now).toMillis() / 60000.0;
+            double batteryLevel = Math.min(100.0, (drone.getBatteryLevel() == null ? 0.0 : drone.getBatteryLevel()) + elapsedMinutes * 3.0);
+            drone.setBatteryLevel(batteryLevel);
+            drone.setChargingStartedAt(now);
+            if (batteryLevel >= 100.0) {
+                drone.setBatteryLevel(100.0);
+                drone.setChargingStartedAt(null);
+                drone.setStatus(DroneStatus.DISPONIVEL);
+            }
+            droneRepository.save(drone);
+            if (drone.getStatus() == DroneStatus.DISPONIVEL) {
+                allocationService.allocateConfirmed(drone.getUserId(), drone.getHangarId());
+            }
+        }
+    }
+
+    private void updateBatteriesInRoute(Instant now) {
+        droneRepository.findAll().stream()
+                .filter(drone -> drone.getStatus() == DroneStatus.EM_ROTA)
+                .filter(drone -> drone.getRouteStatus() == RouteStatus.EM_ANDAMENTO)
+                .filter(drone -> drone.getRouteStartedAt() != null && drone.getRouteEstimatedCompletionAt() != null)
+                .filter(drone -> drone.getRouteEstimatedCompletionAt().isAfter(now))
+                .forEach(drone -> {
+                    double startingBattery = drone.getRouteStartingBatteryLevel() == null
+                            ? (drone.getBatteryLevel() == null ? 100.0 : drone.getBatteryLevel())
+                            : drone.getRouteStartingBatteryLevel();
+                    if (drone.getRouteStartingBatteryLevel() == null) {
+                        drone.setRouteStartingBatteryLevel(startingBattery);
+                    }
+                    long totalMillis = Math.max(1L, Duration.between(drone.getRouteStartedAt(), drone.getRouteEstimatedCompletionAt()).toMillis());
+                    long elapsedMillis = Math.max(0L, Duration.between(drone.getRouteStartedAt(), now).toMillis());
+                    double progress = Math.min(1.0, (double) elapsedMillis / totalMillis);
+                    double totalConsumption = drone.getAutonomy() == null || drone.getAutonomy() <= 0
+                            ? 100.0
+                            : ((drone.getRouteDistance() == null ? 0.0 : drone.getRouteDistance()) / drone.getAutonomy()) * 100.0;
+                    drone.setBatteryLevel(Math.max(0.0, startingBattery - totalConsumption * progress));
+                    droneRepository.save(drone);
+                });
     }
 }

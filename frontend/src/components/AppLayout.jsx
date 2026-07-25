@@ -5,10 +5,12 @@ import { HangarContext } from '../context/HangarContext';
 import api from '../services/api';
 
 const menuItems = [
-  { to: '/dashboard', label: 'Dashboard', group: 'Principal' },
-  { to: '/hangars', label: 'Cadastrar hangares', group: 'Hangares' },
+  { to: '/dashboard/geral', label: 'Geral', group: 'Dashboard' },
+  { to: '/dashboard/pedidos', label: 'Pedidos', group: 'Dashboard' },
+  { to: '/dashboard/drones', label: 'Drones', group: 'Dashboard' },
+  { to: '/hangars/criar', label: 'Cadastrar hangares', group: 'Hangares' },
   { to: '/hangars/gerenciar', label: 'Gerenciar hangares', group: 'Hangares' },
-  { to: '/drones', label: 'Cadastrar drones', group: 'Drones' },
+  { to: '/drones/criar', label: 'Cadastrar drones', group: 'Drones' },
   { to: '/drones/gerenciar', label: 'Gerenciar drones', group: 'Drones' },
   { to: '/modelos', label: 'Modelos', group: 'Principal' },
   { to: '/entregas/cadastrar', label: 'Cadastrar entregas', group: 'Entregas' },
@@ -36,6 +38,7 @@ const AppLayout = ({ children }) => {
   const { selectedHangarId, setSelectedHangarId } = useContext(HangarContext);
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(true);
   const [hangarsOpen, setHangarsOpen] = useState(true);
   const [dronesOpen, setDronesOpen] = useState(true);
   const [deliveriesOpen, setDeliveriesOpen] = useState(true);
@@ -87,7 +90,10 @@ const AppLayout = ({ children }) => {
           </div>
 
           <nav style={{ display: 'grid', gap: '8px' }}>
-            {mainLink('/dashboard', 'Dashboard', 'DB')}
+            <div style={{ display: 'grid', gap: '8px' }}>
+              <DropdownButton label="Dashboard" shortLabel="DB" open={dashboardOpen} collapsed={collapsed} onClick={() => collapsed ? setCollapsed(false) : setDashboardOpen((current) => !current)} />
+              {dashboardOpen && submenu(menuItems.filter((item) => item.group === 'Dashboard'))}
+            </div>
             <div style={{ display: 'grid', gap: '8px' }}>
               <DropdownButton label="Hangares" shortLabel="H" open={hangarsOpen} collapsed={collapsed} onClick={() => collapsed ? setCollapsed(false) : setHangarsOpen((current) => !current)} />
               {hangarsOpen && submenu(menuItems.filter((item) => item.group === 'Hangares'))}

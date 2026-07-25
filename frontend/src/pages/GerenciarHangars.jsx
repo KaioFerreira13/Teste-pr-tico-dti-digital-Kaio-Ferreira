@@ -100,7 +100,7 @@ const GerenciarHangars = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '14px', flexWrap: 'wrap' }}>
                   <div>
                     <h3 style={{ margin: 0 }}>{drone.name}</h3>
-                    <p style={{ margin: '6px 0 0', color: '#58708d' }}>Status: {(drone.status || 'DISPONIVEL').toLowerCase().replaceAll('_', ' ')} | Carga: {drone.currentLoad || 0} / {drone.maxWeight} kg</p>
+                    <p style={{ margin: '6px 0 0', color: '#58708d' }}>Status: {(drone.status || 'DISPONIVEL').toLowerCase().replaceAll('_', ' ')} | Carga: {drone.currentLoad || 0} / {drone.maxWeight} kg | Bateria: {Number(drone.batteryLevel ?? 100).toFixed(1)}%</p>
                   </div>
                   <div style={{ display: 'flex', gap: '9px', alignItems: 'center', flexWrap: 'wrap' }}>
                     {drone.routeStatus === 'AGUARDANDO_INICIO' && <button onClick={() => startFreight(drone.id)} style={{ padding: '10px 14px', border: 0, borderRadius: '9px', background: '#f6c453', color: '#10233d', fontWeight: 800, cursor: 'pointer' }}>Confirmar início do frete</button>}

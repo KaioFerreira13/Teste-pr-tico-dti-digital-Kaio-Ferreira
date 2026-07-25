@@ -6,6 +6,7 @@ const deliveryLabels = {
   AGUARDANDO_CONFIRMACAO: 'Aguardando confirmação',
   CONFIRMADA: 'Confirmada',
   EM_DESPACHO: 'Em despacho',
+  EM_ROTA: 'Em rota',
   ENTREGUE: 'Entregue',
   INVIAVEL: 'Inviável'
 };
@@ -41,7 +42,7 @@ const GerenciarEntregas = () => {
     try {
       const response = await api.get(`/entregas/gerenciamento/${hangarId}`);
       setDeliveries((response.data.deliveries || [])
-        .filter((delivery) => delivery.status !== 'EM_DESPACHO')
+      .filter((delivery) => delivery.status !== 'EM_DESPACHO' && delivery.status !== 'EM_ROTA')
         .map((delivery) => delivery.status === 'NA_FILA' ? { ...delivery, status: 'CONFIRMADA' } : delivery));
       setDrones(response.data.drones || []);
     } catch (err) {
@@ -106,7 +107,7 @@ const GerenciarEntregas = () => {
       const deliveryIds = deliveries.filter((delivery) => delivery.status === 'CONFIRMADA').map((delivery) => delivery.id);
       const response = await api.post(`/entregas/gerenciamento/${selectedHangar}/confirmar`, { deliveryIds });
       const confirmedDeliveries = (response.data.deliveries || [])
-        .filter((delivery) => delivery.status !== 'EM_DESPACHO')
+        .filter((delivery) => delivery.status !== 'EM_DESPACHO' && delivery.status !== 'EM_ROTA')
         .map((delivery) => delivery.status === 'NA_FILA' ? { ...delivery, status: 'CONFIRMADA' } : delivery);
       setDeliveries(confirmedDeliveries);
       setDrones(response.data.drones || []);
@@ -124,7 +125,7 @@ const GerenciarEntregas = () => {
     setError('');
     try {
       const response = await api.post(`/entregas/gerenciamento/${selectedHangar}/limpar-fila`);
-      setDeliveries((response.data.deliveries || []).filter((delivery) => delivery.status !== 'EM_DESPACHO'));
+      setDeliveries((response.data.deliveries || []).filter((delivery) => delivery.status !== 'EM_DESPACHO' && delivery.status !== 'EM_ROTA'));
       setDrones(response.data.drones || []);
       setPrepared(false);
     } catch (err) {
@@ -192,6 +193,7 @@ const GerenciarEntregas = () => {
       .filter((delivery) => delivery.status === 'CONFIRMADA')
       .sort((a, b) => ({ BAIXA: 1, MEDIA: 2, ALTA: 3 }[b.priority] || 0) - ({ BAIXA: 1, MEDIA: 2, ALTA: 3 }[a.priority] || 0)),
     EM_DESPACHO: deliveries.filter((delivery) => delivery.status === 'EM_DESPACHO'),
+    EM_ROTA: deliveries.filter((delivery) => delivery.status === 'EM_ROTA'),
     INVIAVEL: deliveries.filter((delivery) => delivery.status === 'INVIAVEL')
   };
 

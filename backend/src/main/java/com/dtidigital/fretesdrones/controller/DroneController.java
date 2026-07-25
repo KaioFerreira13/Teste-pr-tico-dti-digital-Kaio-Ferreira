@@ -236,6 +236,11 @@ public class DroneController {
         if (drone.getRouteDistance() == null || drone.getAverageSpeed() == null || drone.getAverageSpeed() <= 0) {
             return ResponseEntity.badRequest().body("Nao foi possivel calcular o tempo deste frete.");
         }
+        double batteryLevel = drone.getBatteryLevel() == null ? 100.0 : drone.getBatteryLevel();
+        double requiredBattery = (drone.getRouteDistance() / drone.getAutonomy()) * 100.0;
+        if (requiredBattery > batteryLevel + 0.0001) {
+            return ResponseEntity.badRequest().body("A bateria atual do drone nao e suficiente para concluir esta rota.");
+        }
         long durationSeconds = Math.max(1L, (long) Math.ceil((drone.getRouteDistance() / drone.getAverageSpeed()) * 3600.0));
         Instant startedAt = Instant.now();
         Hangar hangar = hangarRepository.findById(drone.getHangarId()).orElse(null);
@@ -253,9 +258,11 @@ public class DroneController {
             currentX = delivery.getDestinationX();
             currentY = delivery.getDestinationY();
         }
+        drone.setStatus(DroneStatus.EM_ROTA);
         drone.setRouteStatus(RouteStatus.EM_ANDAMENTO);
         drone.setRouteStartedAt(startedAt);
         drone.setRouteEstimatedCompletionAt(startedAt.plus(durationSeconds, ChronoUnit.SECONDS));
+        drone.setRouteStartingBatteryLevel(batteryLevel);
         return ResponseEntity.ok(toResponse(droneRepository.save(drone)));
     }
 
@@ -278,6 +285,9 @@ public class DroneController {
                 });
 
         drone.setStatus(DroneStatus.DISPONIVEL);
+        drone.setBatteryLevel(100.0);
+        drone.setChargingStartedAt(null);
+        drone.setRouteStartingBatteryLevel(null);
         drone.setCurrentLoad(0.0);
         routePlanningService.clear(drone);
         return ResponseEntity.ok(toResponse(droneRepository.findById(id).orElse(drone)));
@@ -338,7 +348,9 @@ public class DroneController {
                 drone.getRouteDistance(),
                 drone.getRouteStatus(),
                 drone.getRouteStartedAt(),
-                drone.getRouteEstimatedCompletionAt()
+                drone.getRouteEstimatedCompletionAt(),
+                drone.getBatteryLevel() == null ? 100.0 : drone.getBatteryLevel(),
+                drone.getChargingStartedAt()
         );
     }
 

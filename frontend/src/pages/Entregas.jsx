@@ -5,9 +5,17 @@ import { getErrorMessage } from '../utils/errorMessage';
 
 const priorityOptions = [
   { value: 'BAIXA', label: 'Baixa' },
-  { value: 'MEDIA', label: 'Média' },
+  { value: 'MEDIA', label: 'Media' },
   { value: 'ALTA', label: 'Alta' }
 ];
+
+const statusLabels = {
+  AGUARDANDO_CONFIRMACAO: 'Aguardando confirmacao',
+  CONFIRMADA: 'Confirmada',
+  EM_DESPACHO: 'Em despacho',
+  ENTREGUE: 'Entregue',
+  INVIAVEL: 'Inviavel'
+};
 
 const initialForm = {
   weight: '',
@@ -32,6 +40,7 @@ const Entregas = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('editar');
 
   const loadDeliveries = async () => {
     setLoading(true);
@@ -102,6 +111,7 @@ const Entregas = () => {
       recipientName: delivery.recipientName || '',
       hangarId: delivery.hangarId || ''
     });
+    setActiveTab('editar');
   };
 
   const handleDelete = async (id) => {
@@ -117,10 +127,18 @@ const Entregas = () => {
     return deliveries
       .filter((delivery) => delivery.status !== 'EM_DESPACHO' && delivery.status !== 'ENTREGUE')
       .sort((a, b) => {
-      const priorityWeight = { ALTA: 0, MEDIA: 1, BAIXA: 2 };
-      return (priorityWeight[a.priority] ?? 3) - (priorityWeight[b.priority] ?? 3);
+        const priorityWeight = { ALTA: 0, MEDIA: 1, BAIXA: 2 };
+        return (priorityWeight[a.priority] ?? 3) - (priorityWeight[b.priority] ?? 3);
       });
   }, [deliveries]);
+
+  const deliveriesByStatus = useMemo(() => (
+    Object.entries(statusLabels).map(([status, label]) => ({
+      status,
+      label,
+      items: deliveries.filter((delivery) => delivery.status === status)
+    }))
+  ), [deliveries]);
 
   return (
     <div style={{ minHeight: '100%', background: '#f4f7fb', color: '#10233d' }}>
@@ -240,31 +258,92 @@ const Entregas = () => {
           </form>
 
           <section style={{ background: 'white', padding: '24px', borderRadius: '18px', boxShadow: '0 10px 30px rgba(16,35,61,0.08)' }}>
-            <h2 style={{ marginTop: 0 }}>Suas entregas</h2>
-            {loading ? (
-              <p>Carregando...</p>
-            ) : sortedDeliveries.length === 0 ? (
-              <p>Não há entregas disponíveis para edição.</p>
-            ) : (
-              <div style={{ display: 'grid', gap: '12px' }}>
-                {sortedDeliveries.map((delivery) => (
-                  <article key={delivery.id} style={{ padding: '16px', borderRadius: '12px', background: '#f7f9fc', display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                    <div>
-                      <div style={{ fontWeight: 700 }}>{delivery.recipientName}</div>
-                      <div style={{ color: '#58708d' }}>Peso: {delivery.weight}</div>
-                      <div style={{ color: '#58708d' }}>Destino: ({delivery.destinationX}, {delivery.destinationY})</div>
-                      <div style={{ color: '#58708d' }}>Prioridade: {formatPriority(delivery.priority)}</div>
-                      <div style={{ color: '#58708d' }}>
-                        Hangar de origem: {hangars.find((hangar) => hangar.id === delivery.hangarId)?.name || 'Hangar não encontrado'}
-                      </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <h2 style={{ margin: 0 }}>Suas entregas</h2>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('editar')}
+                  style={{
+                    padding: '9px 13px',
+                    borderRadius: '999px',
+                    border: activeTab === 'editar' ? '1px solid #0f5bd7' : '1px solid #d6deea',
+                    background: activeTab === 'editar' ? '#dbeafe' : 'white',
+                    color: '#10233d',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Editar entregas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('status')}
+                  style={{
+                    padding: '9px 13px',
+                    borderRadius: '999px',
+                    border: activeTab === 'status' ? '1px solid #0f5bd7' : '1px solid #d6deea',
+                    background: activeTab === 'status' ? '#dbeafe' : 'white',
+                    color: '#10233d',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Por estado
+                </button>
+              </div>
+            </div>
+
+            {activeTab === 'editar' && (
+              <>
+                {loading ? (
+                  <p>Carregando...</p>
+                ) : sortedDeliveries.length === 0 ? (
+                  <p>Nao ha entregas disponiveis para edicao.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '12px', marginTop: '16px' }}>
+                    {sortedDeliveries.map((delivery) => (
+                      <article key={delivery.id} style={{ padding: '16px', borderRadius: '12px', background: '#f7f9fc', display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.78rem', color: '#58708d' }}>Codigo: {delivery.codigo ?? '-'}</div>
+                          <div style={{ fontWeight: 700 }}>{delivery.recipientName}</div>
+                          <div style={{ color: '#58708d' }}>Peso: {delivery.weight}</div>
+                          <div style={{ color: '#58708d' }}>Destino: ({delivery.destinationX}, {delivery.destinationY})</div>
+                          <div style={{ color: '#58708d' }}>Prioridade: {formatPriority(delivery.priority)}</div>
+                          <div style={{ color: '#58708d' }}>
+                            Hangar de origem: {hangars.find((hangar) => hangar.id === delivery.hangarId)?.name || 'Hangar nao encontrado'}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'start' }}>
+                          <button onClick={() => handleEdit(delivery)} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#dbeafe', cursor: 'pointer' }}>
+                            Editar
+                          </button>
+                          <button onClick={() => handleDelete(delivery.id)} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#fee2e2', cursor: 'pointer' }}>
+                            Excluir
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === 'status' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginTop: '16px' }}>
+                {deliveriesByStatus.map((group) => (
+                  <article key={group.status} style={{ padding: '16px', borderRadius: '14px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
+                      <strong>{group.label}</strong>
+                      <span style={{ color: '#58708d' }}>{group.items.length}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'start' }}>
-                      <button onClick={() => handleEdit(delivery)} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#dbeafe', cursor: 'pointer' }}>
-                        Editar
-                      </button>
-                      <button onClick={() => handleDelete(delivery.id)} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#fee2e2', cursor: 'pointer' }}>
-                        Excluir
-                      </button>
+                    <div style={{ display: 'grid', gap: '10px', marginTop: '12px' }}>
+                      {group.items.length ? group.items.map((delivery) => (
+                        <div key={delivery.id} style={{ padding: '12px', borderRadius: '10px', background: 'white' }}>
+                          <div style={{ fontSize: '0.78rem', color: '#58708d' }}>Codigo: {delivery.codigo ?? '-'}</div>
+                          <div style={{ fontWeight: 700 }}>{delivery.recipientName}</div>
+                          <div style={{ color: '#58708d', fontSize: '0.88rem' }}>Peso: {delivery.weight} kg</div>
+                          <div style={{ color: '#58708d', fontSize: '0.88rem' }}>Prioridade: {formatPriority(delivery.priority)}</div>
+                        </div>
+                      )) : <span style={{ color: '#58708d' }}>Nenhuma entrega neste estado.</span>}
                     </div>
                   </article>
                 ))}

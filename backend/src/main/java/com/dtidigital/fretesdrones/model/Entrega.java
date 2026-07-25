@@ -19,6 +19,7 @@ public class Entrega {
 
     @Id
     private String id;
+    private Integer codigo;
     private Double weight;
     private Integer destinationX;
     private Integer destinationY;

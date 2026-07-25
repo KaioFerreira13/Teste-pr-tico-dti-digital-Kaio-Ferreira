@@ -4,12 +4,14 @@ import { AuthProvider, AuthContext } from './context/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import DashboardDrones from './pages/DashboardDrones';
 import Hangars from './pages/Hangars';
 import GerenciarHangars from './pages/GerenciarHangars';
 import Drones from './pages/Drones';
 import GerenciarDrones from './pages/GerenciarDrones';
 import Modelos from './pages/Modelos';
 import Entregas from './pages/Entregas';
+import PedidosPorEstado from './pages/PedidosPorEstado';
 import GerenciarEntregas from './pages/GerenciarEntregas';
 import AppLayout from './components/AppLayout';
 import { HangarProvider } from './context/HangarContext';
@@ -37,8 +39,8 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard/geral" 
             element={
               <ProtectedRoute>
                 <AppLayout>
@@ -48,7 +50,27 @@ function App() {
             } 
           />
           <Route
-            path="/hangars"
+            path="/dashboard/pedidos"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <PedidosPorEstado />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/drones"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <DashboardDrones />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hangars/criar"
             element={
               <ProtectedRoute>
                 <AppLayout>
@@ -68,7 +90,7 @@ function App() {
             }
           />
           <Route
-            path="/drones"
+            path="/drones/criar"
             element={
               <ProtectedRoute>
                 <AppLayout>
@@ -98,7 +120,7 @@ function App() {
             }
           />
           <Route
-            path="/entregas"
+            path="/entregas/criar"
             element={<Navigate to="/entregas/cadastrar" replace />}
           />
           <Route

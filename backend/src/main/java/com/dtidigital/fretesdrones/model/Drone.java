@@ -34,6 +34,9 @@ public class Drone {
     private RouteStatus routeStatus;
     private Instant routeStartedAt;
     private Instant routeEstimatedCompletionAt;
+    private Double batteryLevel;
+    private Instant chargingStartedAt;
+    private Double routeStartingBatteryLevel;
 
     public Drone(String name, Double autonomy, Double maxWeight, Double averageSpeed, String hangarId, String modelId, String userId) {
         this.name = name;
@@ -45,5 +48,6 @@ public class Drone {
         this.userId = userId;
         this.status = DroneStatus.DISPONIVEL;
         this.currentLoad = 0.0;
+        this.batteryLevel = 100.0;
     }
 }

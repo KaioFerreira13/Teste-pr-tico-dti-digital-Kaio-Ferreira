@@ -20,8 +20,10 @@ public class DroneResponse {
     private RouteStatus routeStatus;
     private Instant routeStartedAt;
     private Instant routeEstimatedCompletionAt;
+    private Double batteryLevel;
+    private Instant chargingStartedAt;
 
-    public DroneResponse(String id, String name, Double autonomy, Double maxWeight, Double averageSpeed, String hangarId, String modelId, DroneStatus status, Double currentLoad, List<String> routeDeliveryIds, Double routeDistance, RouteStatus routeStatus, Instant routeStartedAt, Instant routeEstimatedCompletionAt) {
+    public DroneResponse(String id, String name, Double autonomy, Double maxWeight, Double averageSpeed, String hangarId, String modelId, DroneStatus status, Double currentLoad, List<String> routeDeliveryIds, Double routeDistance, RouteStatus routeStatus, Instant routeStartedAt, Instant routeEstimatedCompletionAt, Double batteryLevel, Instant chargingStartedAt) {
         this.id = id;
         this.name = name;
         this.autonomy = autonomy;
@@ -36,6 +38,8 @@ public class DroneResponse {
         this.routeStatus = routeStatus;
         this.routeStartedAt = routeStartedAt;
         this.routeEstimatedCompletionAt = routeEstimatedCompletionAt;
+        this.batteryLevel = batteryLevel;
+        this.chargingStartedAt = chargingStartedAt;
     }
 
     public String getId() {
@@ -73,4 +77,6 @@ public class DroneResponse {
     public RouteStatus getRouteStatus() { return routeStatus; }
     public Instant getRouteStartedAt() { return routeStartedAt; }
     public Instant getRouteEstimatedCompletionAt() { return routeEstimatedCompletionAt; }
+    public Double getBatteryLevel() { return batteryLevel; }
+    public Instant getChargingStartedAt() { return chargingStartedAt; }
 }

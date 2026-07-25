@@ -135,7 +135,7 @@ const Drones = () => {
 
   return (
     <div style={{ minHeight: '100%', background: '#f4f7fb', color: '#10233d' }}>
-      <div style={{ maxWidth: '1120px', margin: '0 auto' }}>
+      <div style={{ margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', gap: '16px' }}>
           <div>
             <h1 style={{ margin: 0 }}>Drones</h1>

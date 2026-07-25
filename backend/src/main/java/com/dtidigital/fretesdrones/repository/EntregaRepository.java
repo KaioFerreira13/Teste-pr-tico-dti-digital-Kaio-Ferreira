@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface EntregaRepository extends MongoRepository<Entrega, String> {
     List<Entrega> findByUserId(String userId);
+    java.util.Optional<Entrega> findTopByOrderByCodigoDesc();
 }

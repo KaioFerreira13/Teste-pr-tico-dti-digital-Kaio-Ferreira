@@ -99,7 +99,8 @@ public class DeliveryAllocationService {
                 .filter(drone -> {
                     List<Entrega> routeDeliveries = new ArrayList<>(plannedDeliveries.get(drone.getId()));
                     routeDeliveries.add(delivery);
-                    return routePlanningService.calculateDistance(drone, routeDeliveries) <= drone.getAutonomy();
+                    double availableRange = drone.getAutonomy() * ((drone.getBatteryLevel() == null ? 100.0 : drone.getBatteryLevel()) / 100.0);
+                    return routePlanningService.calculateDistance(drone, routeDeliveries) <= availableRange;
                 })
                 .min(Comparator.comparingDouble(drone -> drone.getMaxWeight() - loads.get(drone.getId()) - delivery.getWeight()))
                 .orElse(null);
