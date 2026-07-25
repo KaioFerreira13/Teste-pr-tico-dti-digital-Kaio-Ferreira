@@ -11,17 +11,8 @@ const droneStatuses = [{
   value: 'DISPONIVEL',
   label: 'Disponível'
 }, {
-  value: 'EM_DESPACHO',
-  label: 'Em despacho'
-}, {
-  value: 'EM_ROTA',
-  label: 'Em rota'
-}, {
   value: 'EM_MANUTENCAO',
   label: 'Em manutenção'
-}, {
-  value: 'RECARREGANDO',
-  label: 'Recarregando'
 }];
 const GerenciarDrones = () => {
   const [hangars, setHangars] = useState([]);
@@ -112,17 +103,19 @@ const GerenciarDrones = () => {
         {visibleDrones.map(drone => {
         const assigned = deliveries.filter(delivery => delivery.droneId === drone.id && (delivery.status === 'EM_DESPACHO' || delivery.status === 'EM_ROTA'));
         const routeDeliveries = (drone.routeDeliveryIds || []).map(deliveryId => assigned.find(delivery => delivery.id === deliveryId)).filter(Boolean);
+        const canManuallyChangeStatus = ['DISPONIVEL', 'EM_MANUTENCAO'].includes(drone.status || 'DISPONIVEL');
         return <article key={drone.id} className="[padding:22px] [border-radius:18px] [background:white] [box-shadow:0_8px_24px_rgba(16,35,61,0.06)]">
             <div className="[display:flex] [justify-content:space-between] [align-items:flex-start] [gap:16px] [flex-wrap:wrap]">
               <div><h2 className="[margin:0]">{drone.name}</h2><p className="[margin:6px_0_0] [color:#58708d]">Carga: {drone.currentLoad || 0} / {drone.maxWeight} kg | Bateria: {Number(drone.batteryLevel ?? 100).toFixed(1)}%</p></div>
               <label className="[color:#58708d]">Status
-                <select disabled={drone.status === 'EM_DESPACHO' || drone.status === 'EM_ROTA'} value={drone.status || 'DISPONIVEL'} onChange={event => updateStatus(drone.id, event.target.value)} title={drone.status === 'EM_DESPACHO' || drone.status === 'EM_ROTA' ? 'O status não pode ser alterado durante o frete' : ''} style={{
-                background: drone.status === 'EM_DESPACHO' || drone.status === 'EM_ROTA' ? '#edf2f7' : 'white',
-                cursor: drone.status === 'EM_DESPACHO' || drone.status === 'EM_ROTA' ? 'not-allowed' : 'pointer'
+                <select disabled={!canManuallyChangeStatus} value={drone.status || 'DISPONIVEL'} onChange={event => updateStatus(drone.id, event.target.value)} title={!canManuallyChangeStatus ? 'Este status e controlado automaticamente pelo sistema' : ''} style={{
+                background: !canManuallyChangeStatus ? '#edf2f7' : 'white',
+                cursor: !canManuallyChangeStatus ? 'not-allowed' : 'pointer'
               }} className="[display:block] [margin-top:5px] [padding:9px] [border-radius:8px] [border:1px_solid_#d6deea]">
+                  {!canManuallyChangeStatus && <option value={drone.status}>{(drone.status || '').toLowerCase().replaceAll('_', ' ')}</option>}
                   {droneStatuses.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}
                 </select>
-                {(drone.status === 'EM_DESPACHO' || drone.status === 'EM_ROTA') && <small className="[display:block] [margin-top:5px] [max-width:190px]">Bloqueado durante o frete</small>}
+                {!canManuallyChangeStatus && <small className="[display:block] [margin-top:5px] [max-width:190px]">Controlado automaticamente</small>}
               </label>
             </div>
             <h3 className="[margin-bottom:10px] [font-size:1rem]">Entregas alocadas ({assigned.length})</h3>
