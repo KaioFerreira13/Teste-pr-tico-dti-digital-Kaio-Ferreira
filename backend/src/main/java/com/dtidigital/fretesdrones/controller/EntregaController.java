@@ -319,7 +319,24 @@ public class EntregaController {
     }
 
     private DroneResponse toDroneResponse(Drone drone) {
-        return new DroneResponse(drone.getId(), drone.getName(), drone.getAutonomy(), drone.getMaxWeight(), drone.getAverageSpeed(), drone.getHangarId(), drone.getModelId(), drone.getStatus() == null ? DroneStatus.DISPONIVEL : drone.getStatus(), drone.getCurrentLoad() == null ? 0.0 : drone.getCurrentLoad(), drone.getRouteDeliveryIds(), drone.getRouteDistance(), drone.getRouteStatus(), drone.getRouteStartedAt(), drone.getRouteEstimatedCompletionAt());
+        return new DroneResponse(
+                drone.getId(),
+                drone.getName(),
+                drone.getAutonomy(),
+                drone.getMaxWeight(),
+                drone.getAverageSpeed(),
+                drone.getHangarId(),
+                drone.getModelId(),
+                drone.getStatus() == null ? DroneStatus.DISPONIVEL : drone.getStatus(),
+                drone.getCurrentLoad() == null ? 0.0 : drone.getCurrentLoad(),
+                drone.getRouteDeliveryIds(),
+                drone.getRouteDistance(),
+                drone.getRouteStatus(),
+                drone.getRouteStartedAt(),
+                drone.getRouteEstimatedCompletionAt(),
+                drone.getBatteryLevel() == null ? 100.0 : drone.getBatteryLevel(),
+                drone.getChargingStartedAt()
+        );
     }
 
     public record ManagementResponse(List<EntregaResponse> deliveries, List<DroneResponse> drones) {}

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
-const getRemainingSeconds = (estimatedCompletionAt) => {
+export const getRemainingSeconds = (estimatedCompletionAt) => {
   if (!estimatedCompletionAt) return 0;
   return Math.max(0, Math.ceil((new Date(estimatedCompletionAt).getTime() - Date.now()) / 1000));
 };
 
-const formatTime = (totalSeconds) => {
+export const formatTime = (totalSeconds) => {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;

@@ -21,7 +21,7 @@ const ProtectedRoute = ({ children }) => {
   const { authenticated, loading } = useContext(AuthContext);
 
   if (loading) {
-    return <div>Carregando...</div>;
+    return <div className="grid min-h-screen place-items-center bg-mist text-ink"><i className="bi bi-arrow-repeat mr-2 animate-spin" />Carregando...</div>;
   }
 
   if (!authenticated) {

@@ -16,6 +16,11 @@ com drones. O mapa da cidade sera tratado como uma matriz 2D simples.
 
 Nao e necessario instalar Maven globalmente, pois o backend inclui Maven Wrapper.
 
+## Testes
+
+A descricao dos 54 casos automatizados, regras cobertas e comandos de execucao
+esta em [`docs/TESTES.md`](docs/TESTES.md).
+
 ## Comandos
 
 Frontend:
