@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api', // adjust if backend port changes
+  baseURL: configuredApiUrl
+    ? configuredApiUrl.replace(/\/+$/, '')
+    : 'http://localhost:8080/api',
 });
 
 api.interceptors.request.use(

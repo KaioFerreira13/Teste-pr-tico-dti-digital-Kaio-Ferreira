@@ -10,6 +10,7 @@ logs/
 .env
 .env.*
 !backend/.env.example
+!frontend/.env.example
 
 # Frontend
 frontend/node_modules/

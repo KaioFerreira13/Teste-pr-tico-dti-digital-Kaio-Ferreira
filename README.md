@@ -91,3 +91,37 @@ Variaveis:
 | `JWT_SECRET` | Sim | Chave longa e aleatoria usada para assinar tokens. |
 | `CORS_ALLOWED_ORIGINS` | Sim | URLs autorizadas a acessar a API pelo navegador. |
 | `PORT` | Nao | Porta HTTP; o Render fornece automaticamente. |
+
+## Deploy do frontend na Vercel
+
+Ao importar este repositorio na Vercel, configure:
+
+| Campo | Valor |
+| --- | --- |
+| Framework Preset | `Vite` |
+| Root Directory | `frontend` |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+| Install Command | `npm install` |
+
+Em `Environment Variables`, adicione:
+
+```text
+VITE_API_URL=https://seu-backend.onrender.com/api
+```
+
+Use a URL HTTPS, inclua `/api` e nao coloque barra no final. A variavel deve ser
+aplicada aos ambientes `Production`, `Preview` e `Development` conforme a
+necessidade. Depois de alterar a variavel, realize um novo deploy.
+
+O arquivo `frontend/vercel.json` redireciona as rotas da SPA para `index.html`,
+permitindo atualizar diretamente paginas como `/dashboard/geral`.
+
+No backend hospedado no Render, atualize:
+
+```text
+CORS_ALLOWED_ORIGINS=https://seu-frontend.vercel.app
+```
+
+Nao coloque barra no final. Se utilizar dominio proprio ou URLs adicionais,
+separe as origens por virgula.
