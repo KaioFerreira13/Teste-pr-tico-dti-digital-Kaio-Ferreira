@@ -9,6 +9,7 @@ import com.dtidigital.fretesdrones.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -33,7 +34,7 @@ public class ModeloController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createModel(@RequestBody ModeloRequest request, Authentication authentication) {
+    public ResponseEntity<?> createModel(@Valid @RequestBody ModeloRequest request, Authentication authentication) {
         User user = getCurrentUser(authentication);
 
         if (request.getName() == null || request.getName().isBlank()) {
@@ -57,7 +58,7 @@ public class ModeloController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateModel(@PathVariable String id, @RequestBody ModeloRequest request, Authentication authentication) {
+    public ResponseEntity<?> updateModel(@PathVariable String id, @Valid @RequestBody ModeloRequest request, Authentication authentication) {
         User user = getCurrentUser(authentication);
 
         return modeloRepository.findById(id)

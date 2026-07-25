@@ -9,6 +9,7 @@ import com.dtidigital.fretesdrones.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -41,7 +42,7 @@ public class HangarController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createHangar(@RequestBody HangarRequest request, Authentication authentication) {
+    public ResponseEntity<?> createHangar(@Valid @RequestBody HangarRequest request, Authentication authentication) {
         User user = getCurrentUser(authentication);
 
         if (request.getName() == null || request.getName().isBlank()) {
@@ -59,7 +60,7 @@ public class HangarController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateHangar(@PathVariable String id, @RequestBody HangarRequest request, Authentication authentication) {
+    public ResponseEntity<?> updateHangar(@PathVariable String id, @Valid @RequestBody HangarRequest request, Authentication authentication) {
         User user = getCurrentUser(authentication);
 
         return hangarRepository.findById(id)

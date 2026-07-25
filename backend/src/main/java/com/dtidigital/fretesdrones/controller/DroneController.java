@@ -13,6 +13,7 @@ import com.dtidigital.fretesdrones.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -39,7 +40,7 @@ public class DroneController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createDrone(@RequestBody DroneRequest request, Authentication authentication) {
+    public ResponseEntity<?> createDrone(@Valid @RequestBody DroneRequest request, Authentication authentication) {
         User user = getCurrentUser(authentication);
 
         String validation = validateRequest(request, user.getId(), null);
@@ -60,7 +61,7 @@ public class DroneController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateDrone(@PathVariable String id, @RequestBody DroneRequest request, Authentication authentication) {
+    public ResponseEntity<?> updateDrone(@PathVariable String id, @Valid @RequestBody DroneRequest request, Authentication authentication) {
         User user = getCurrentUser(authentication);
 
         return droneRepository.findById(id)
