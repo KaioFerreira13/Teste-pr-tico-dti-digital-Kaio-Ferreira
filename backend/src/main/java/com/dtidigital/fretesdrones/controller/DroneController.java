@@ -130,6 +130,9 @@ public class DroneController {
         Drone drone = droneRepository.findById(id).orElse(null);
         if (drone == null) return ResponseEntity.notFound().build();
         if (!user.getId().equals(drone.getUserId())) return ResponseEntity.status(403).body("Voce nao pode alterar este drone.");
+        if (drone.getStatus() == DroneStatus.EM_DESPACHO) {
+            return ResponseEntity.badRequest().body("O status de um drone em despacho nao pode ser alterado manualmente.");
+        }
         try {
             drone.setStatus(DroneStatus.valueOf(request.status().trim().toUpperCase()));
         } catch (Exception exception) {
@@ -166,6 +169,51 @@ public class DroneController {
                 .filter(item -> droneId.equals(item.getDroneId()) && item.getStatus() == DeliveryStatus.EM_DESPACHO).toList();
         if (remainingDeliveries.isEmpty()) routePlanningService.clear(drone);
         else routePlanningService.plan(drone, remainingDeliveries);
+        if (drone.getStatus() == DroneStatus.DISPONIVEL) {
+            allocationService.allocateConfirmed(user.getId(), drone.getHangarId());
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{droneId}/entregas/remover")
+    public ResponseEntity<?> unassignDeliveries(@PathVariable String droneId, @RequestBody BulkUnassignRequest request, Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        Drone drone = droneRepository.findById(droneId).orElse(null);
+        if (drone == null) return ResponseEntity.notFound().build();
+        if (!user.getId().equals(drone.getUserId())) return ResponseEntity.status(403).body("Voce nao pode alterar este drone.");
+        if (request == null || request.deliveryIds() == null || request.deliveryIds().isEmpty()) {
+            return ResponseEntity.badRequest().body("Selecione ao menos uma entrega.");
+        }
+
+        List<Entrega> selectedDeliveries = request.deliveryIds().stream()
+                .map(entregaRepository::findById)
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .toList();
+        boolean invalidSelection = selectedDeliveries.size() != request.deliveryIds().size()
+                || selectedDeliveries.stream().anyMatch(delivery -> !user.getId().equals(delivery.getUserId()) || !droneId.equals(delivery.getDroneId()));
+        if (invalidSelection) {
+            return ResponseEntity.badRequest().body("A selecao contem uma entrega que nao pertence a este drone.");
+        }
+
+        selectedDeliveries.forEach(delivery -> {
+            delivery.setDroneId(null);
+            delivery.setStatus(DeliveryStatus.AGUARDANDO_CONFIRMACAO);
+            entregaRepository.save(delivery);
+        });
+
+        List<Entrega> remainingDeliveries = entregaRepository.findByUserId(user.getId()).stream()
+                .filter(delivery -> droneId.equals(delivery.getDroneId()) && delivery.getStatus() == DeliveryStatus.EM_DESPACHO)
+                .toList();
+        double remainingLoad = remainingDeliveries.stream().mapToDouble(delivery -> delivery.getWeight() == null ? 0.0 : delivery.getWeight()).sum();
+        drone.setCurrentLoad(remainingLoad);
+        if (remainingDeliveries.isEmpty()) {
+            if (drone.getStatus() == DroneStatus.EM_DESPACHO) drone.setStatus(DroneStatus.DISPONIVEL);
+            routePlanningService.clear(drone);
+        } else {
+            droneRepository.save(drone);
+            routePlanningService.plan(drone, remainingDeliveries);
+        }
         if (drone.getStatus() == DroneStatus.DISPONIVEL) {
             allocationService.allocateConfirmed(user.getId(), drone.getHangarId());
         }
@@ -279,4 +327,5 @@ public class DroneController {
     }
 
     public record StatusRequest(String status) {}
+    public record BulkUnassignRequest(List<String> deliveryIds) {}
 }

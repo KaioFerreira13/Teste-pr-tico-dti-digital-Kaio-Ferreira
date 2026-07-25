@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
+import HangarRouteMap from '../components/HangarRouteMap';
 
 const GerenciarHangars = () => {
   const [hangars, setHangars] = useState([]);
@@ -38,7 +39,7 @@ const GerenciarHangars = () => {
   const dispatching = hangarDeliveries.filter((delivery) => delivery.status === 'EM_DESPACHO').length;
 
   return (
-    <div style={{ maxWidth: '1050px' }}>
+    <div>
       <header style={{ padding: '26px', borderRadius: '20px', background: 'white', boxShadow: '0 10px 30px rgba(16,35,61,0.08)' }}>
         <h1 style={{ margin: '0 0 8px' }}>Gestão de hangares</h1>
         <p style={{ margin: 0, color: '#58708d' }}>Selecione um hangar para acompanhar sua operação.</p>
@@ -66,6 +67,7 @@ const GerenciarHangars = () => {
             <strong style={{ display: 'block', marginTop: '8px', fontSize: '2rem', color: '#10233d' }}>{value}</strong>
           </article>)}
         </div>
+        <HangarRouteMap hangar={hangar} drones={hangarDrones} deliveries={hangarDeliveries} />
         <section style={{ marginTop: '16px' }}>
           <h2 style={{ color: '#10233d' }}>Drones e rotas</h2>
           <div style={{ display: 'grid', gap: '14px' }}>
