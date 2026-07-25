@@ -6,10 +6,10 @@ import lombok.Data;
 
 @Data
 public class HangarRequest {
-    @NotBlank
+    @NotBlank(message = "O nome do hangar e obrigatorio.")
     private String name;
-    @NotNull
+    @NotNull(message = "A posicao X do hangar e obrigatoria.")
     private Integer positionX;
-    @NotNull
+    @NotNull(message = "A posicao Y do hangar e obrigatoria.")
     private Integer positionY;
 }

@@ -7,18 +7,18 @@ import lombok.Data;
 
 @Data
 public class DroneRequest {
-    @NotBlank
+    @NotBlank(message = "O nome do drone e obrigatorio.")
     private String name;
-    @NotNull
-    @Positive
+    @NotNull(message = "A autonomia e obrigatoria.")
+    @Positive(message = "A autonomia deve ser positiva.")
     private Double autonomy;
-    @NotNull
-    @Positive
+    @NotNull(message = "O peso maximo e obrigatorio.")
+    @Positive(message = "O peso maximo deve ser positivo.")
     private Double maxWeight;
-    @NotNull
-    @Positive
+    @NotNull(message = "A velocidade media e obrigatoria.")
+    @Positive(message = "A velocidade media deve ser positiva.")
     private Double averageSpeed;
-    @NotBlank
+    @NotBlank(message = "O hangar e obrigatorio.")
     private String hangarId;
     private String modelId;
 }
