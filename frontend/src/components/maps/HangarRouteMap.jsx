@@ -15,6 +15,7 @@ const HangarRouteMap = ({
   const [showReturnRoutes, setShowReturnRoutes] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedStopId, setSelectedStopId] = useState(null);
+  const [mobileMapOpen, setMobileMapOpen] = useState(false);
   const drag = useRef(null);
   const mapContainerRef = useRef(null);
   useEffect(() => {
@@ -34,6 +35,19 @@ const HangarRouteMap = ({
       capture: true
     });
   }, []);
+  useEffect(() => {
+    if (!mobileMapOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = event => {
+      if (event.key === 'Escape') setMobileMapOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMapOpen]);
   const routes = useMemo(() => drones.map((drone, index) => {
     const stops = (drone.routeDeliveryIds || []).map(id => deliveries.find(delivery => delivery.id === id)).filter(Boolean);
     return {
@@ -143,15 +157,51 @@ const HangarRouteMap = ({
     }
     setHiddenRoutes(current => current.includes(droneId) ? current.filter(id => id !== droneId) : [...current, droneId]);
   };
-  return <section className="[margin-top:18px] [padding:20px] [border-radius:18px] [background:white] [box-shadow:0_8px_24px_rgba(16,35,61,0.06)]">
+  const openDeliveryOnMobileMap = (route, stop) => {
+    setHiddenRoutes(current => current.filter(id => id !== route.drone.id));
+    setSelectedStopId(stop.id);
+    setHoveredMarker(stop.id);
+    setMobileMapOpen(true);
+  };
+  const openAllRoutesOnMobileMap = () => {
+    setHiddenRoutes([]);
+    setSelectedStopId(null);
+    setHoveredMarker(null);
+    setMobileMapOpen(true);
+  };
+  return <>
+    <section className="mobile-route-cards [margin-top:18px] [padding:16px] [border-radius:18px] [background:white] [box-shadow:0_8px_24px_rgba(16,35,61,0.06)]">
+      <div className="[display:flex] [align-items:center] [justify-content:space-between] [gap:12px]">
+        <div>
+          <h2 className="[margin:0]">Rotas de entrega</h2>
+          <p className="[margin:5px_0_0] [color:#58708d] [font-size:0.85rem]">Toque em uma entrega para destacá-la no mapa.</p>
+        </div>
+        <button type="button" onClick={openAllRoutesOnMobileMap} className="[flex:0_0_auto] [padding:10px_13px] [border:0] [border-radius:9px] [background:#0f5bd7] [color:white] [font-weight:700] [cursor:pointer]">Exibir mapa</button>
+      </div>
+      <div className="[display:grid] [gap:9px] [margin-top:14px]">
+        {destinationCards.map(({ route, stop, index }) => <button type="button" key={`mobile-${route.drone.id}-${stop.id}`} onClick={() => openDeliveryOnMobileMap(route, stop)} className="[padding:12px] [border:1px_solid_#d6deea] [border-radius:10px] [background:#f8fafc] [text-align:left] [cursor:pointer]">
+          <div className="[display:flex] [align-items:center] [gap:7px]">
+            <span style={{ background: route.color }} className="[width:10px] [height:10px] [flex:0_0_auto] [border-radius:50%]" />
+            <strong>{index + 1}. {stop.recipientName}</strong>
+            <i className="bi bi-map [margin-left:auto] [color:#0f5bd7]" />
+          </div>
+          <div className="[margin-top:6px] [color:#58708d] [font-size:0.85rem]">Drone: {route.drone.name}</div>
+          <div className="[color:#58708d] [font-size:0.85rem]">Destino: ({stop.destinationX}, {stop.destinationY})</div>
+        </button>)}
+        {!destinationCards.length && <span className="[padding:12px] [color:#58708d]">Nenhuma rota planejada neste hangar.</span>}
+      </div>
+    </section>
+    {mobileMapOpen && <button type="button" aria-label="Fechar mapa" onClick={() => setMobileMapOpen(false)} className="mobile-map-backdrop" />}
+    <section role={mobileMapOpen ? 'dialog' : undefined} aria-modal={mobileMapOpen ? 'true' : undefined} aria-label={mobileMapOpen ? 'Mapa de rotas' : undefined} className={`route-map-panel ${mobileMapOpen ? 'route-map-panel--open' : ''} [margin-top:18px] [padding:20px] [border-radius:18px] [background:white] [box-shadow:0_8px_24px_rgba(16,35,61,0.06)]`}>
       <div className="[display:flex] [justify-content:space-between] [gap:12px] [align-items:center] [flex-wrap:wrap]">
         <div>
           <h2 className="[margin:0]">Mapa operacional</h2>
           <p className="[margin:5px_0_0] [color:#58708d] [font-size:0.9rem]">Arraste para navegar, use o zoom e clique na legenda para ocultar rotas.</p>
         </div>
         <div className="[display:flex] [gap:7px]">
-          <button onClick={() => changeZoom(1.35)} className="[padding:8px_12px] [border:0] [border-radius:8px] [background:#10233d] [color:white] [cursor:pointer]">+</button>
-          <button onClick={() => changeZoom(1 / 1.35)} className="[padding:8px_12px] [border:0] [border-radius:8px] [background:#10233d] [color:white] [cursor:pointer]">−</button>
+          <button type="button" onClick={() => setMobileMapOpen(false)} className="mobile-map-close [padding:8px_12px] [border:0] [border-radius:8px] [background:#fee2e2] [color:#c53030] [font-weight:700] [cursor:pointer]"><i className="bi bi-x-lg" /> Fechar</button>
+          <button onClick={() => changeZoom(1.35)} className="desktop-map-zoom [padding:8px_12px] [border:0] [border-radius:8px] [background:#10233d] [color:white] [cursor:pointer]">+</button>
+          <button onClick={() => changeZoom(1 / 1.35)} className="desktop-map-zoom [padding:8px_12px] [border:0] [border-radius:8px] [background:#10233d] [color:white] [cursor:pointer]">−</button>
           <button onClick={() => {
           setZoom(1);
           setPan({
@@ -273,6 +323,7 @@ const HangarRouteMap = ({
         </button>)}
         {!routes.length && <span className="[color:#58708d]">Nenhum drone possui rota planejada neste hangar.</span>}
       </div>
-    </section>;
+    </section>
+  </>;
 };
 export default HangarRouteMap;
