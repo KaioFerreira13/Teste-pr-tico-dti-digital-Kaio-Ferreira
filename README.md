@@ -8,7 +8,7 @@ acompanhar rotas em um mapa cartesiano e cadastrar áreas que devem ser evitadas
 
 Acesse a aplicação publicada:
 
-[Abrir o Fretes Drones](https://teste-dti-kaio-ferreira.vercel.app/login)
+[Abrir o Fretes Drones](https://teste-dti-kaio-ferreira.vercel.app)
 
 ## Funcionalidades
 
