@@ -1,6 +1,7 @@
 package com.dtidigital.fretesdrones.service;
 
 import com.dtidigital.fretesdrones.model.DeliveryStatus;
+import com.dtidigital.fretesdrones.model.DeliveryInviabilityReason;
 import com.dtidigital.fretesdrones.model.Drone;
 import com.dtidigital.fretesdrones.model.DroneStatus;
 import com.dtidigital.fretesdrones.model.Entrega;
@@ -49,6 +50,13 @@ public class DeliveryAllocationService {
         Set<String> assignedDroneIds = new HashSet<>();
 
         for (Entrega delivery : queue) {
+            if (routePlanningService.isDestinationRestricted(delivery, userId)) {
+                delivery.setStatus(DeliveryStatus.INVIAVEL);
+                delivery.setInviabilityReason(DeliveryInviabilityReason.AREA_RESTRITA);
+                delivery.setDroneId(null);
+                entregaRepository.save(delivery);
+                continue;
+            }
             boolean canAnyDroneComplete = hangarDrones.stream().anyMatch(drone ->
                     drone.getMaxWeight() != null
                             && drone.getAutonomy() != null
@@ -58,6 +66,7 @@ public class DeliveryAllocationService {
             );
             if (!canAnyDroneComplete) {
                 delivery.setStatus(DeliveryStatus.INVIAVEL);
+                delivery.setInviabilityReason(null);
                 delivery.setDroneId(null);
                 entregaRepository.save(delivery);
                 continue;
@@ -75,6 +84,7 @@ public class DeliveryAllocationService {
             }
 
             loads.put(best.getId(), loads.get(best.getId()) + delivery.getWeight());
+            delivery.setInviabilityReason(null);
             plannedDeliveries.get(best.getId()).add(delivery);
             assignedDroneIds.add(best.getId());
             delivery.setStatus(DeliveryStatus.EM_DESPACHO);

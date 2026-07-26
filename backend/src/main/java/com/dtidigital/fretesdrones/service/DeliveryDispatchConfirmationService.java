@@ -71,8 +71,8 @@ public class DeliveryDispatchConfirmationService {
             );
         }
         delivery.setStatus(DeliveryStatus.CONFIRMADA);
+        delivery.setInviabilityReason(null);
         delivery.setDroneId(null);
         entregaRepository.save(delivery);
     }
 }
-

@@ -2,6 +2,31 @@ import api from './api';
 import { listHangars } from './hangarService';
 
 const priorityWeight = { ALTA: 0, MEDIA: 1, BAIXA: 2 };
+const restrictedDistance = (start, target, areas) => {
+  if (!areas.length) return Math.abs(start.x - target.x) + Math.abs(start.y - target.y);
+  const blocked = (x, y) => areas.some(area =>
+    x >= Math.floor(area.minX) - 1 && x <= Math.ceil(area.maxX) + 1
+    && y >= Math.floor(area.minY) - 1 && y <= Math.ceil(area.maxY) + 1);
+  const xs = [start.x, target.x, ...areas.flatMap(area => [area.minX - 2, area.maxX + 2])];
+  const ys = [start.y, target.y, ...areas.flatMap(area => [area.minY - 2, area.maxY + 2])];
+  const margin = Math.max(8, Math.abs(start.x - target.x) + Math.abs(start.y - target.y));
+  const minX = Math.floor(Math.min(...xs) - margin), maxX = Math.ceil(Math.max(...xs) + margin);
+  const minY = Math.floor(Math.min(...ys) - margin), maxY = Math.ceil(Math.max(...ys) + margin);
+  const queue = [{ ...start, distance: 0 }];
+  const visited = new Set([`${start.x},${start.y}`]);
+  while (queue.length) {
+    const current = queue.shift();
+    if (current.x === target.x && current.y === target.y) return current.distance;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const x = current.x + dx, y = current.y + dy, key = `${x},${y}`;
+      if (x < minX || x > maxX || y < minY || y > maxY || visited.has(key)) continue;
+      if (blocked(x, y) && !(x === target.x && y === target.y)) continue;
+      visited.add(key);
+      queue.push({ x, y, distance: current.distance + 1 });
+    }
+  }
+  return Number.POSITIVE_INFINITY;
+};
 
 const normalizeManagement = data => ({
   deliveries: (data?.deliveries || [])
@@ -86,7 +111,7 @@ export const splitDelivery = async (id, weights) => {
   return data;
 };
 
-export const allocatePendingDeliveries = (deliveries, drones, hangar) => {
+export const allocatePendingDeliveries = (deliveries, drones, hangar, restrictedAreas = []) => {
   const priority = { BAIXA: 1, MEDIA: 2, ALTA: 3 };
   const pending = deliveries
     .filter(delivery => delivery.status === 'AGUARDANDO_CONFIRMACAO')
@@ -94,14 +119,19 @@ export const allocatePendingDeliveries = (deliveries, drones, hangar) => {
   const nextDeliveries = deliveries.map(delivery => ({ ...delivery }));
 
   pending.forEach(delivery => {
+    const destinationRestricted = restrictedAreas.some(area =>
+      delivery.destinationX >= area.minX && delivery.destinationX <= area.maxX
+      && delivery.destinationY >= area.minY && delivery.destinationY <= area.maxY);
     const roundTripDistance = hangar
-      ? 2 *
-        (Math.abs(delivery.destinationX - hangar.positionX) +
-          Math.abs(delivery.destinationY - hangar.positionY))
+      ? 2 * restrictedDistance(
+        { x: hangar.positionX, y: hangar.positionY },
+        { x: delivery.destinationX, y: delivery.destinationY },
+        restrictedAreas,
+      )
       : Number.POSITIVE_INFINITY;
     const supportsWeight = drones.some(drone => delivery.weight <= drone.maxWeight);
     const supportsDistance = drones.some(drone => roundTripDistance <= drone.autonomy);
-    const canEverFit = drones.some(
+    const canEverFit = !destinationRestricted && drones.some(
       drone => delivery.weight <= drone.maxWeight && roundTripDistance <= drone.autonomy,
     );
     const target = nextDeliveries.find(item => item.id === delivery.id);
@@ -109,6 +139,8 @@ export const allocatePendingDeliveries = (deliveries, drones, hangar) => {
     target.droneId = null;
     if (canEverFit) {
       delete target.inviabilityReason;
+    } else if (destinationRestricted) {
+      target.inviabilityReason = 'AREA_RESTRITA';
     } else if (!supportsWeight && !supportsDistance) {
       target.inviabilityReason = 'PESO_E_DISTANCIA';
     } else if (!supportsWeight) {

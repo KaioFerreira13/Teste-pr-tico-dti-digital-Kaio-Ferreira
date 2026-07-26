@@ -58,7 +58,7 @@ const PedidosPorEstado = () => {
                   <h2 className="[margin:0] [font-size:1.05rem]">{column.label}</h2>
                   <span className="[color:#58708d]">{column.items.length}</span>
                 </div>
-                <div className="[display:grid] [gap:10px] [margin-top:14px]">
+                <div className="internal-scroll-list [display:grid] [gap:10px] [margin-top:14px]">
                   {column.items.length ? column.items.map(delivery => <div key={delivery.id} className="[padding:12px] [border-radius:12px] [background:#f7f9fc] [border-left:4px_solid_#0f5bd7]">
                       <div className="[font-size:0.78rem] [color:#58708d] [margin-bottom:4px]">Codigo do pedido</div>
                       <div className="[font-family:monospace] [font-weight:700] [font-size:0.9rem] [word-break:break-all]">{delivery.codigo ?? '-'}</div>

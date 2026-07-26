@@ -16,6 +16,14 @@ const menuGroups = [
     ]
   },
   {
+    label: 'Cidade',
+    icon: 'bi-map',
+    items: [
+      { to: '/cidade/vizualizar', label: 'Visualizar cidade', icon: 'bi-geo-alt' },
+      { to: '/cidade/alertas', label: 'Alertas', icon: 'bi-exclamation-triangle' }
+    ]
+  },
+  {
     label: 'Hangares',
     icon: 'bi-buildings',
     items: [

@@ -7,6 +7,7 @@ import com.dtidigital.fretesdrones.model.Hangar;
 import com.dtidigital.fretesdrones.model.RouteStatus;
 import com.dtidigital.fretesdrones.repository.DroneRepository;
 import com.dtidigital.fretesdrones.repository.HangarRepository;
+import com.dtidigital.fretesdrones.repository.AlertAreaRepository;
 import com.dtidigital.fretesdrones.routing.RouteCalculator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,8 @@ class RoutePlanningServiceTest {
         service = new RoutePlanningService(
                 droneRepository,
                 hangarRepository,
-                new RouteCalculator()
+                new RouteCalculator(),
+                mock(AlertAreaRepository.class)
         );
         drone = Drone.builder().id("d1").hangarId("h1").build();
         when(hangarRepository.findById("h1"))

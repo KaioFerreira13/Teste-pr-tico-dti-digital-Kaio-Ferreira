@@ -84,7 +84,7 @@ const GerenciarHangars = () => {
         <HangarRouteMap hangar={hangar} drones={hangarDrones} deliveries={hangarDeliveries} />
         <section className="[margin-top:16px]">
           <h2 className="[color:#10233d]">Drones e rotas</h2>
-          <div className="[display:grid] [gap:14px]">
+          <div className="internal-scroll-list [display:grid] [gap:14px]">
             {hangarDrones.map(drone => {
             const assigned = hangarDeliveries.filter(delivery => delivery.droneId === drone.id && delivery.status === 'EM_DESPACHO');
             const routeDeliveries = (drone.routeDeliveryIds || []).map(deliveryId => assigned.find(delivery => delivery.id === deliveryId)).filter(Boolean);

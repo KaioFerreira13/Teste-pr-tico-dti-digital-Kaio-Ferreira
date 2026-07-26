@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.Instant;
+import com.dtidigital.fretesdrones.model.DeliveryInviabilityReason;
 
 @Data
 @NoArgsConstructor
@@ -22,4 +23,5 @@ public class EntregaResponse {
     private DeliveryStatus status;
     private String droneId;
     private Instant estimatedDeliveryAt;
+    private DeliveryInviabilityReason inviabilityReason;
 }

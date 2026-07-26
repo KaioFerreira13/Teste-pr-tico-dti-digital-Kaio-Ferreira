@@ -154,7 +154,7 @@ const Drones = () => {
 
           <section className="[background:white] [padding:24px] [border-radius:18px] [box-shadow:0_10px_30px_rgba(16,35,61,0.08)]">
             <h2 className="[margin-top:0]">Seus drones</h2>
-            {loading ? <p>Carregando...</p> : drones.length === 0 ? <p>Voce ainda nao cadastrou nenhum drone.</p> : <div className="[display:grid] [gap:16px]">
+            {loading ? <p>Carregando...</p> : drones.length === 0 ? <p>Voce ainda nao cadastrou nenhum drone.</p> : <div className="internal-scroll-list [display:grid] [gap:16px]">
                 {hangars.map(hangar => {
               const groupedDrones = dronesByHangar[hangar.id] || [];
               return <section key={hangar.id} className="[padding:18px] [border-radius:14px] [background:#f7f9fc]">

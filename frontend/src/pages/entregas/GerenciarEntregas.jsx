@@ -9,6 +9,7 @@ import {
 } from '../../services/deliveryService';
 import { listHangars } from '../../services/hangarService';
 import { HangarContext } from '../../context/HangarContext';
+import { listAlertAreas } from '../../services/alertService';
 const deliveryLabels = {
   AGUARDANDO_CONFIRMACAO: 'Aguardando confirmação',
   CONFIRMADA: 'Confirmada',
@@ -27,7 +28,8 @@ const statusColors = {
 const inviabilityMessages = {
   PESO: 'Peso acima da capacidade dos drones deste hangar.',
   DISTANCIA: 'Distância acima da autonomia dos drones deste hangar.',
-  PESO_E_DISTANCIA: 'Peso e distância acima da capacidade operacional dos drones deste hangar.'
+  PESO_E_DISTANCIA: 'Peso e distância acima da capacidade operacional dos drones deste hangar.',
+  AREA_RESTRITA: 'As coordenadas de destino estão dentro de uma área restrita.'
 };
 const GerenciarEntregas = () => {
   const [hangars, setHangars] = useState([]);
@@ -42,6 +44,7 @@ const GerenciarEntregas = () => {
   const [inviableDelivery, setInviableDelivery] = useState(null);
   const [partitionCount, setPartitionCount] = useState(2);
   const [partitionWeights, setPartitionWeights] = useState(['', '']);
+  const [restrictedAreas, setRestrictedAreas] = useState([]);
   const loadManagement = async hangarId => {
     if (!hangarId) {
       setDeliveries([]);
@@ -62,6 +65,7 @@ const GerenciarEntregas = () => {
   };
   useEffect(() => {
     listHangars().then(setHangars).catch(() => setError('Nao foi possivel carregar os hangares.'));
+    listAlertAreas().then(setRestrictedAreas).catch(() => setRestrictedAreas([]));
   }, []);
   useEffect(() => {
     setPrepared(false);
@@ -71,7 +75,7 @@ const GerenciarEntregas = () => {
     if (!selectedHangar) return;
     setError('');
     const hangar = hangars.find(item => item.id === selectedHangar);
-    const allocation = allocatePendingDeliveries(deliveries, drones, hangar);
+    const allocation = allocatePendingDeliveries(deliveries, drones, hangar, restrictedAreas);
     setDeliveries(allocation.deliveries);
     setDrones(allocation.drones);
     setPrepared(true);
@@ -136,7 +140,7 @@ const GerenciarEntregas = () => {
       const parts = await splitDelivery(inviableDelivery.id, weights);
       const nextDeliveries = [...deliveries.filter(delivery => delivery.id !== inviableDelivery.id), ...parts];
       const hangar = hangars.find(item => item.id === selectedHangar);
-      const allocation = allocatePendingDeliveries(nextDeliveries, drones, hangar);
+      const allocation = allocatePendingDeliveries(nextDeliveries, drones, hangar, restrictedAreas);
       setDeliveries(allocation.deliveries);
       setDrones(allocation.drones);
       setPrepared(true);
@@ -198,7 +202,7 @@ const GerenciarEntregas = () => {
   const renderColumn = (title, status, description) => <section className="[padding:18px] [border-radius:16px] [background:white] [box-shadow:0_8px_24px_rgba(16,35,61,0.06)]">
       <h2 className="[margin:0] [font-size:1.15rem]">{title} <span className="[color:#58708d]">({grouped[status].length})</span></h2>
       <p className="[min-height:42px] [color:#58708d] [font-size:0.9rem] [line-height:1.4]">{description}</p>
-      <div className="[display:grid] [gap:10px]">{grouped[status].length ? grouped[status].map(renderDelivery) : <span className="[color:#58708d]">Nenhuma entrega nesta etapa.</span>}</div>
+      <div className="internal-scroll-list [display:grid] [gap:10px]">{grouped[status].length ? grouped[status].map(renderDelivery) : <span className="[color:#58708d]">Nenhuma entrega nesta etapa.</span>}</div>
     </section>;
   return <div className="[max-width:1180px]">
       <div className="[margin-bottom:20px] [padding:26px] [border-radius:20px] [background:white] [box-shadow:0_10px_30px_rgba(16,35,61,0.08)]">
@@ -219,7 +223,7 @@ const GerenciarEntregas = () => {
       {selectedHangar && !loading && <>
         <div className="[margin-bottom:20px] [padding:20px] [border-radius:16px] [background:#10233d] [color:white]">
           <h2 className="[margin:0_0_14px]">Drones do hangar ({drones.length})</h2>
-          <div className="[display:grid] [grid-template-columns:repeat(auto-fit,_minmax(190px,_1fr))] [gap:10px]">
+          <div className="internal-scroll-list [display:grid] [grid-template-columns:repeat(auto-fit,_minmax(190px,_1fr))] [gap:10px]">
             {drones.map(drone => <div key={drone.id} className="[padding:12px] [border-radius:10px] [background:rgba(255,255,255,0.1)]"><strong>{drone.name}</strong><div className="[margin-top:5px] [font-size:0.88rem] [opacity:0.85]">{drone.status === 'EM_DESPACHO' ? 'Em despacho' : drone.status?.toLowerCase()} | {drone.currentLoad || 0} / {drone.maxWeight} kg</div></div>)}
             {!drones.length && <span>Nenhum drone cadastrado neste hangar.</span>}
           </div>
@@ -256,7 +260,7 @@ const GerenciarEntregas = () => {
           {inviableDelivery.inviabilityReason !== 'PESO' && <p className="[color:#58708d] [line-height:1.5]">A divisão do peso não torna esta rota viável. Esta entrega pode apenas ser excluída.</p>}
           <div className="[display:flex] [justify-content:flex-end] [gap:10px] [margin-top:20px] [flex-wrap:wrap]">
             <button onClick={deleteInviable} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#fee2e2] [color:#c53030] [cursor:pointer]">Excluir entrega</button>
-            {inviableDelivery.inviabilityReason === 'PESO' && <button onClick={() => setInviableDelivery(null)} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#edf2f7] [color:#243b53] [cursor:pointer]">Decidir depois</button>}
+            <button onClick={() => setInviableDelivery(null)} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#edf2f7] [color:#243b53] [cursor:pointer]">Tratar depois</button>
             {inviableDelivery.inviabilityReason === 'PESO' && <button onClick={splitInviable} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#0f5bd7] [color:white] [font-weight:700] [cursor:pointer]">Confirmar divisão</button>}
           </div>
         </div>

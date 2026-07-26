@@ -73,7 +73,7 @@ const Dashboard = () => {
               </p>
             </div>
           </div>
-          <div className="[display:grid] [gap:12px] [margin-top:16px]">
+          <div className="internal-scroll-list [display:grid] [gap:12px] [margin-top:16px]">
             {loading ? <p>Carregando...</p> : droneRanking.length === 0 ? <p>Nenhum drone finalizou entregas ainda.</p> : droneRanking.map((item, index) => <article key={item.drone.id} style={{
             background: index === 0 ? '#eef6ff' : '#f7f9fc'
           }} className="[padding:14px_16px] [border-radius:12px] [display:flex] [justify-content:space-between] [gap:16px] [align-items:center]">
