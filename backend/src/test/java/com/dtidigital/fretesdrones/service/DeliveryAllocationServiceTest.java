@@ -2,6 +2,7 @@ package com.dtidigital.fretesdrones.service;
 
 import com.dtidigital.fretesdrones.model.DeliveryPriority;
 import com.dtidigital.fretesdrones.model.DeliveryStatus;
+import com.dtidigital.fretesdrones.model.DeliveryInviabilityReason;
 import com.dtidigital.fretesdrones.model.Drone;
 import com.dtidigital.fretesdrones.model.DroneStatus;
 import com.dtidigital.fretesdrones.model.Entrega;
@@ -82,6 +83,23 @@ class DeliveryAllocationServiceTest {
         assertEquals(DeliveryStatus.INVIAVEL, delivery.getStatus());
         assertNull(delivery.getDroneId());
         verify(entregaRepository).save(delivery);
+        verify(routePlanningService, never()).plan(any(), any());
+    }
+
+    @Test
+    void marksDeliveryInfeasibleWhenDestinationIsInsideRestrictedArea() {
+        Drone drone = drone("d1", 10, 100, 100);
+        Entrega delivery = delivery("e1", 2, DeliveryPriority.ALTA);
+        when(droneRepository.findByUserId("u1")).thenReturn(List.of(drone));
+        when(entregaRepository.findByUserId("u1")).thenReturn(List.of(delivery));
+        when(routePlanningService.isDestinationRestricted(delivery, "u1")).thenReturn(true);
+
+        service.allocateConfirmed("u1", "h1");
+
+        assertEquals(DeliveryStatus.INVIAVEL, delivery.getStatus());
+        assertEquals(DeliveryInviabilityReason.AREA_RESTRITA, delivery.getInviabilityReason());
+        assertNull(delivery.getDroneId());
+        verify(routePlanningService, never()).calculateDistance(any(), any());
         verify(routePlanningService, never()).plan(any(), any());
     }
 
