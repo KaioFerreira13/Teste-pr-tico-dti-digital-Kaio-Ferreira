@@ -99,7 +99,7 @@ const GerenciarDrones = () => {
       </header>
 
       {loading && <p>Carregando...</p>}
-      {selectedHangar && !loading && <div className="[display:grid] [gap:16px] [margin-top:20px]">
+      {selectedHangar && !loading && <div className="internal-scroll-list [display:grid] [gap:16px] [margin-top:20px]">
         {visibleDrones.map(drone => {
         const assigned = deliveries.filter(delivery => delivery.droneId === drone.id && (delivery.status === 'EM_DESPACHO' || delivery.status === 'EM_ROTA'));
         const routeDeliveries = (drone.routeDeliveryIds || []).map(deliveryId => assigned.find(delivery => delivery.id === deliveryId)).filter(Boolean);
@@ -119,7 +119,7 @@ const GerenciarDrones = () => {
               </label>
             </div>
             <h3 className="[margin-bottom:10px] [font-size:1rem]">Entregas alocadas ({assigned.length})</h3>
-            <div className="[display:grid] [gap:9px]">
+            <div className="internal-scroll-list internal-scroll-list--compact [display:grid] [gap:9px]">
               {assigned.map(delivery => <div key={delivery.id} className="[display:flex] [align-items:center] [gap:12px] [padding:12px] [border-radius:10px] [background:#f7f9fc]">
                 <input type="checkbox" checked={(selectedByDrone[drone.id] || []).includes(delivery.id)} onChange={() => toggleDelivery(drone.id, delivery.id)} aria-label={`Selecionar entrega de ${delivery.recipientName}`} className="[width:18px] [height:18px] [cursor:pointer]" />
                 <div><strong>{delivery.recipientName}</strong><div className="[color:#58708d] [font-size:0.9rem]">{delivery.weight} kg | Prioridade {delivery.priority?.toLowerCase()}</div>{drone.routeStatus === 'EM_ANDAMENTO' && <div className="[margin-top:4px] [color:#237a48] [font-size:0.9rem] [font-weight:700]">Tempo restante: <RemainingTime estimatedCompletionAt={delivery.estimatedDeliveryAt} /></div>}</div>

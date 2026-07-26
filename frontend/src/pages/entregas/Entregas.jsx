@@ -201,7 +201,7 @@ const Entregas = () => {
             </div>
 
             {activeTab === 'editar' && <>
-                {loading ? <p>Carregando...</p> : sortedDeliveries.length === 0 ? <p>Nao ha entregas disponiveis para edicao.</p> : <div className="[display:grid] [gap:12px] [margin-top:16px]">
+                {loading ? <p>Carregando...</p> : sortedDeliveries.length === 0 ? <p>Nao ha entregas disponiveis para edicao.</p> : <div className="internal-scroll-list [display:grid] [gap:12px] [margin-top:16px]">
                     {sortedDeliveries.map(delivery => <article key={delivery.id} className="[padding:16px] [border-radius:12px] [background:#f7f9fc] [display:flex] [justify-content:space-between] [gap:12px]">
                         <div>
                           <div className="[font-size:0.78rem] [color:#58708d]">Codigo: {delivery.codigo ?? '-'}</div>
@@ -231,7 +231,7 @@ const Entregas = () => {
                       <strong>{group.label}</strong>
                       <span className="[color:#58708d]">{group.items.length}</span>
                     </div>
-                    <div className="[display:grid] [gap:10px] [margin-top:12px]">
+                    <div className="internal-scroll-list [display:grid] [gap:10px] [margin-top:12px]">
                       {group.items.length ? group.items.map(delivery => <div key={delivery.id} className="[padding:12px] [border-radius:10px] [background:white]">
                           <div className="[font-size:0.78rem] [color:#58708d]">Codigo: {delivery.codigo ?? '-'}</div>
                           <div className="[font-weight:700]">{delivery.recipientName}</div>

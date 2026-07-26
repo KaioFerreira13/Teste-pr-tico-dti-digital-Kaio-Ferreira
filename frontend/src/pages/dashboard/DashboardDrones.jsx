@@ -99,7 +99,7 @@ const DashboardDrones = () => {
                 <h2 className="[margin:0] [font-size:1.05rem]">{column.label}</h2>
                 <span className="[color:#58708d]">{column.items.length}</span>
               </div>
-              <div className="[display:grid] [gap:10px] [margin-top:14px]">
+              <div className="internal-scroll-list [display:grid] [gap:10px] [margin-top:14px]">
                 {column.items.length ? column.items.map(drone => {
               const assigned = visibleDeliveries.filter(delivery => delivery.droneId === drone.id);
               return <div key={drone.id} className="[padding:12px] [border-radius:12px] [background:#f7f9fc] [border-left:4px_solid_#0f5bd7]">

@@ -115,7 +115,7 @@ const Hangars = () => {
 
           <section className="[background:white] [padding:24px] [border-radius:18px] [box-shadow:0_10px_30px_rgba(16,35,61,0.08)]">
             <h2 className="[margin-top:0]">Seus hangares</h2>
-            {loading ? <p>Carregando...</p> : hangars.length === 0 ? <p>Você ainda não cadastrou nenhum hangar.</p> : <div className="[display:grid] [gap:12px]">
+            {loading ? <p>Carregando...</p> : hangars.length === 0 ? <p>Você ainda não cadastrou nenhum hangar.</p> : <div className="internal-scroll-list [display:grid] [gap:12px]">
                 {hangars.map(hangar => <article key={hangar.id} className="[padding:16px] [border-radius:12px] [background:#f7f9fc] [display:flex] [justify-content:space-between] [gap:12px]">
                     <div>
                       <div className="[font-weight:700]">{hangar.name}</div>

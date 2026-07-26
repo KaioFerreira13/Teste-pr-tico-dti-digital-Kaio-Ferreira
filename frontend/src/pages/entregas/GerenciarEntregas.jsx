@@ -198,7 +198,7 @@ const GerenciarEntregas = () => {
   const renderColumn = (title, status, description) => <section className="[padding:18px] [border-radius:16px] [background:white] [box-shadow:0_8px_24px_rgba(16,35,61,0.06)]">
       <h2 className="[margin:0] [font-size:1.15rem]">{title} <span className="[color:#58708d]">({grouped[status].length})</span></h2>
       <p className="[min-height:42px] [color:#58708d] [font-size:0.9rem] [line-height:1.4]">{description}</p>
-      <div className="[display:grid] [gap:10px]">{grouped[status].length ? grouped[status].map(renderDelivery) : <span className="[color:#58708d]">Nenhuma entrega nesta etapa.</span>}</div>
+      <div className="internal-scroll-list [display:grid] [gap:10px]">{grouped[status].length ? grouped[status].map(renderDelivery) : <span className="[color:#58708d]">Nenhuma entrega nesta etapa.</span>}</div>
     </section>;
   return <div className="[max-width:1180px]">
       <div className="[margin-bottom:20px] [padding:26px] [border-radius:20px] [background:white] [box-shadow:0_10px_30px_rgba(16,35,61,0.08)]">
@@ -219,7 +219,7 @@ const GerenciarEntregas = () => {
       {selectedHangar && !loading && <>
         <div className="[margin-bottom:20px] [padding:20px] [border-radius:16px] [background:#10233d] [color:white]">
           <h2 className="[margin:0_0_14px]">Drones do hangar ({drones.length})</h2>
-          <div className="[display:grid] [grid-template-columns:repeat(auto-fit,_minmax(190px,_1fr))] [gap:10px]">
+          <div className="internal-scroll-list [display:grid] [grid-template-columns:repeat(auto-fit,_minmax(190px,_1fr))] [gap:10px]">
             {drones.map(drone => <div key={drone.id} className="[padding:12px] [border-radius:10px] [background:rgba(255,255,255,0.1)]"><strong>{drone.name}</strong><div className="[margin-top:5px] [font-size:0.88rem] [opacity:0.85]">{drone.status === 'EM_DESPACHO' ? 'Em despacho' : drone.status?.toLowerCase()} | {drone.currentLoad || 0} / {drone.maxWeight} kg</div></div>)}
             {!drones.length && <span>Nenhum drone cadastrado neste hangar.</span>}
           </div>
