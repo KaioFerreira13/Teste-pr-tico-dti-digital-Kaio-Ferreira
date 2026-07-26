@@ -3,7 +3,7 @@ import { listHangars } from './hangarService';
 import { listModels } from './modelService';
 
 export const listDrones = async () => {
-  const { data } = await api.get('/drones/me');
+  const { data } = await api.get('/drones');
   return Array.isArray(data) ? data : [];
 };
 
@@ -86,4 +86,3 @@ export const groupDronesByHangar = (hangars, drones) =>
       drones.filter(drone => drone.hangarId === hangar.id),
     ]),
   );
-

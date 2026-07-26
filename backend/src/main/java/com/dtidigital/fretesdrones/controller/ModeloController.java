@@ -27,7 +27,7 @@ public class ModeloController {
         this.authenticatedUserService = authenticatedUserService;
     }
 
-    @GetMapping("/me")
+    @GetMapping({"", "/me"})
     public List<ModeloResponse> getMyModels(Authentication authentication) {
         return modeloService.findByUser(currentUser(authentication));
     }

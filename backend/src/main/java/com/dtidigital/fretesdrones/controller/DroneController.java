@@ -34,7 +34,7 @@ public class DroneController {
         this.authenticatedUserService = authenticatedUserService;
     }
 
-    @GetMapping("/me")
+    @GetMapping({"", "/me"})
     public List<DroneResponse> getMyDrones(Authentication authentication) {
         return droneService.findByUser(currentUser(authentication));
     }

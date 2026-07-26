@@ -13,7 +13,7 @@ const normalizeManagement = data => ({
 });
 
 export const listDeliveries = async () => {
-  const { data } = await api.get('/entregas/me');
+  const { data } = await api.get('/entregas');
   return Array.isArray(data) ? data : [];
 };
 
@@ -109,4 +109,3 @@ export const allocatePendingDeliveries = (deliveries, drones, hangar) => {
 
   return { deliveries: nextDeliveries, drones };
 };
-

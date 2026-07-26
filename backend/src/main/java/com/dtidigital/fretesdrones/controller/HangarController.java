@@ -27,7 +27,7 @@ public class HangarController {
         this.authenticatedUserService = authenticatedUserService;
     }
 
-    @GetMapping({"/me", ""})
+    @GetMapping({"", "/me"})
     public List<HangarResponse> getMyHangars(Authentication authentication) {
         return hangarService.findByUser(currentUser(authentication));
     }

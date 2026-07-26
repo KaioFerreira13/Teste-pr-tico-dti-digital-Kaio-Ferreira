@@ -1,7 +1,7 @@
 import api from './api';
 
 export const listModels = async () => {
-  const { data } = await api.get('/modelos/me');
+  const { data } = await api.get('/modelos');
   return Array.isArray(data) ? data : [];
 };
 
@@ -28,4 +28,3 @@ export const toModelForm = model => ({
   maxWeight: model.maxWeight ?? '',
   averageSpeed: model.averageSpeed ?? '',
 });
-

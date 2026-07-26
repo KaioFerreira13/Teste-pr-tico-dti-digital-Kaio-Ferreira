@@ -1,7 +1,7 @@
 import api from './api';
 
 export const listHangars = async () => {
-  const { data } = await api.get('/hangars/me');
+  const { data } = await api.get('/hangars');
   return Array.isArray(data) ? data : [];
 };
 
@@ -26,4 +26,3 @@ export const toHangarForm = hangar => ({
   positionX: hangar.positionX ?? '',
   positionY: hangar.positionY ?? '',
 });
-

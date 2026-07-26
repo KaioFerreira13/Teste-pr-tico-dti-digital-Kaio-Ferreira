@@ -34,7 +34,7 @@ public class EntregaController {
         this.authenticatedUserService = authenticatedUserService;
     }
 
-    @GetMapping("/me")
+    @GetMapping({"", "/me"})
     public List<EntregaResponse> getMyDeliveries(Authentication authentication) {
         return deliveryService.findByUser(currentUser(authentication));
     }
