@@ -93,6 +93,12 @@
   -webkit-user-drag: none;
 }
 
+.city-map,
+.city-map text {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .internal-scroll-list {
   max-height: clamp(18rem, 52dvh, 38rem);
   padding-right: 6px;

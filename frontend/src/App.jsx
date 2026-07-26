@@ -13,6 +13,8 @@ import GerenciarDrones from './pages/drones/GerenciarDrones';
 import Modelos from './pages/modelos/Modelos';
 import Entregas from './pages/entregas/Entregas';
 import GerenciarEntregas from './pages/entregas/GerenciarEntregas';
+import Cidade from './pages/cidade/Cidade';
+import Alertas from './pages/cidade/Alertas';
 import AppLayout from './components/layout/AppLayout';
 import { HangarProvider } from './context/HangarContext';
 import './styles/App.css';
@@ -91,6 +93,27 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/cidade/alertas"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Alertas />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/cidade/vizualizar"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Cidade />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/cidade" element={<Navigate to="/cidade/vizualizar" replace />} />
           <Route
             path="/hangars/criar"
             element={

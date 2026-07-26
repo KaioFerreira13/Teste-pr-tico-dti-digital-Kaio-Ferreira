@@ -74,4 +74,21 @@ describe('deliveryService', () => {
     expect(result.deliveries.find(item => item.id === 'distance').inviabilityReason).toBe('DISTANCIA');
     expect(result.deliveries.find(item => item.id === 'both').inviabilityReason).toBe('PESO_E_DISTANCIA');
   });
+
+  it('marks a destination inside a restricted area with its specific reason', () => {
+    const deliveries = [
+      { id: 'restricted', status: 'AGUARDANDO_CONFIRMACAO', weight: 1, destinationX: 5, destinationY: 5 },
+    ];
+    const areas = [{ minX: 4, minY: 4, maxX: 6, maxY: 6 }];
+
+    const result = allocatePendingDeliveries(
+      deliveries,
+      [{ maxWeight: 10, autonomy: 100 }],
+      { positionX: 0, positionY: 0 },
+      areas,
+    );
+
+    expect(result.deliveries[0].status).toBe('INVIAVEL');
+    expect(result.deliveries[0].inviabilityReason).toBe('AREA_RESTRITA');
+  });
 });

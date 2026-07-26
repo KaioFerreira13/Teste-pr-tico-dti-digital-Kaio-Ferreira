@@ -9,6 +9,7 @@ import {
 } from '../../services/deliveryService';
 import { listHangars } from '../../services/hangarService';
 import { HangarContext } from '../../context/HangarContext';
+import { listAlertAreas } from '../../services/alertService';
 const deliveryLabels = {
   AGUARDANDO_CONFIRMACAO: 'Aguardando confirmação',
   CONFIRMADA: 'Confirmada',
@@ -27,7 +28,8 @@ const statusColors = {
 const inviabilityMessages = {
   PESO: 'Peso acima da capacidade dos drones deste hangar.',
   DISTANCIA: 'Distância acima da autonomia dos drones deste hangar.',
-  PESO_E_DISTANCIA: 'Peso e distância acima da capacidade operacional dos drones deste hangar.'
+  PESO_E_DISTANCIA: 'Peso e distância acima da capacidade operacional dos drones deste hangar.',
+  AREA_RESTRITA: 'As coordenadas de destino estão dentro de uma área restrita.'
 };
 const GerenciarEntregas = () => {
   const [hangars, setHangars] = useState([]);
@@ -42,6 +44,7 @@ const GerenciarEntregas = () => {
   const [inviableDelivery, setInviableDelivery] = useState(null);
   const [partitionCount, setPartitionCount] = useState(2);
   const [partitionWeights, setPartitionWeights] = useState(['', '']);
+  const [restrictedAreas, setRestrictedAreas] = useState([]);
   const loadManagement = async hangarId => {
     if (!hangarId) {
       setDeliveries([]);
@@ -62,6 +65,7 @@ const GerenciarEntregas = () => {
   };
   useEffect(() => {
     listHangars().then(setHangars).catch(() => setError('Nao foi possivel carregar os hangares.'));
+    listAlertAreas().then(setRestrictedAreas).catch(() => setRestrictedAreas([]));
   }, []);
   useEffect(() => {
     setPrepared(false);
@@ -71,7 +75,7 @@ const GerenciarEntregas = () => {
     if (!selectedHangar) return;
     setError('');
     const hangar = hangars.find(item => item.id === selectedHangar);
-    const allocation = allocatePendingDeliveries(deliveries, drones, hangar);
+    const allocation = allocatePendingDeliveries(deliveries, drones, hangar, restrictedAreas);
     setDeliveries(allocation.deliveries);
     setDrones(allocation.drones);
     setPrepared(true);
@@ -136,7 +140,7 @@ const GerenciarEntregas = () => {
       const parts = await splitDelivery(inviableDelivery.id, weights);
       const nextDeliveries = [...deliveries.filter(delivery => delivery.id !== inviableDelivery.id), ...parts];
       const hangar = hangars.find(item => item.id === selectedHangar);
-      const allocation = allocatePendingDeliveries(nextDeliveries, drones, hangar);
+      const allocation = allocatePendingDeliveries(nextDeliveries, drones, hangar, restrictedAreas);
       setDeliveries(allocation.deliveries);
       setDrones(allocation.drones);
       setPrepared(true);
@@ -256,7 +260,7 @@ const GerenciarEntregas = () => {
           {inviableDelivery.inviabilityReason !== 'PESO' && <p className="[color:#58708d] [line-height:1.5]">A divisão do peso não torna esta rota viável. Esta entrega pode apenas ser excluída.</p>}
           <div className="[display:flex] [justify-content:flex-end] [gap:10px] [margin-top:20px] [flex-wrap:wrap]">
             <button onClick={deleteInviable} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#fee2e2] [color:#c53030] [cursor:pointer]">Excluir entrega</button>
-            {inviableDelivery.inviabilityReason === 'PESO' && <button onClick={() => setInviableDelivery(null)} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#edf2f7] [color:#243b53] [cursor:pointer]">Decidir depois</button>}
+            <button onClick={() => setInviableDelivery(null)} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#edf2f7] [color:#243b53] [cursor:pointer]">Tratar depois</button>
             {inviableDelivery.inviabilityReason === 'PESO' && <button onClick={splitInviable} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#0f5bd7] [color:white] [font-weight:700] [cursor:pointer]">Confirmar divisão</button>}
           </div>
         </div>

@@ -30,6 +30,7 @@ public class Entrega {
     private DeliveryStatus status;
     private String droneId;
     private Instant estimatedDeliveryAt;
+    private DeliveryInviabilityReason inviabilityReason;
 
     public Entrega(Double weight, Integer destinationX, Integer destinationY, DeliveryPriority priority, String recipientName, String hangarId, String userId) {
         this.weight = weight;

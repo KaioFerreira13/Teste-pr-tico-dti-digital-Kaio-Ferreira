@@ -22,7 +22,8 @@ public class DeliveryMapper {
                         ? DeliveryStatus.AGUARDANDO_CONFIRMACAO
                         : delivery.getStatus(),
                 delivery.getDroneId(),
-                delivery.getEstimatedDeliveryAt()
+                delivery.getEstimatedDeliveryAt(),
+                delivery.getInviabilityReason()
         );
     }
 }

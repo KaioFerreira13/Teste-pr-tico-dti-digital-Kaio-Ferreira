@@ -1,6 +1,69 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import droneImage from '../../assets/drone.png';
+import { listAlertAreas } from '../../services/alertService';
 const routeColors = ['#e4572e', '#1d84b5', '#2f9c6a', '#e0a100', '#8f5cc2', '#d45087', '#008f95', '#7a8b25'];
+const alertTypes = {
+  INVIAVEL: { color: '#64748b', icon: 'bi-ban' },
+  CONSTRUCAO: { color: '#eab308', icon: 'bi-buildings-fill' },
+  INSEGURA: { color: '#dc2626', icon: 'bi-exclamation-triangle-fill' }
+};
+const safeSegment = (start, target, areas) => {
+  if (!areas.length) return [start, target];
+  const blocked = (x, y) => areas.some(area =>
+    x >= Math.floor(area.minX) - 1 && x <= Math.ceil(area.maxX) + 1
+    && y >= Math.floor(area.minY) - 1 && y <= Math.ceil(area.maxY) + 1);
+  const xs = [start.x, target.x, ...areas.flatMap(area => [area.minX - 2, area.maxX + 2])];
+  const ys = [start.y, target.y, ...areas.flatMap(area => [area.minY - 2, area.maxY + 2])];
+  const margin = Math.max(8, Math.abs(start.x - target.x) + Math.abs(start.y - target.y));
+  const limits = {
+    minX: Math.floor(Math.min(...xs) - margin), maxX: Math.ceil(Math.max(...xs) + margin),
+    minY: Math.floor(Math.min(...ys) - margin), maxY: Math.ceil(Math.max(...ys) + margin)
+  };
+  const key = (x, y) => `${x},${y}`;
+  const queue = [{ x: start.x, y: start.y, cost: 0 }];
+  const costs = new Map([[key(start.x, start.y), 0]]);
+  const previous = new Map();
+  while (queue.length) {
+    queue.sort((a, b) =>
+      a.cost + Math.abs(a.x - target.x) + Math.abs(a.y - target.y)
+      - b.cost - Math.abs(b.x - target.x) - Math.abs(b.y - target.y));
+    const current = queue.shift();
+    if (current.x === target.x && current.y === target.y) {
+      const path = [{ x: target.x, y: target.y }];
+      let cursor = key(target.x, target.y);
+      while (previous.has(cursor)) {
+        const point = previous.get(cursor);
+        path.push(point);
+        cursor = key(point.x, point.y);
+      }
+      return path.reverse();
+    }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const x = current.x + dx, y = current.y + dy;
+      if (x < limits.minX || x > limits.maxX || y < limits.minY || y > limits.maxY) continue;
+      if (blocked(x, y) && !(x === target.x && y === target.y)) continue;
+      const nextCost = current.cost + 1;
+      const nextKey = key(x, y);
+      if (nextCost >= (costs.get(nextKey) ?? Infinity)) continue;
+      costs.set(nextKey, nextCost);
+      previous.set(nextKey, { x: current.x, y: current.y });
+      queue.push({ x, y, cost: nextCost });
+    }
+  }
+  return [start, target];
+};
+const safeRoute = (hangar, stops, areas) => {
+  const origin = { x: hangar.positionX, y: hangar.positionY };
+  const outbound = [origin];
+  let current = origin;
+  stops.forEach(stop => {
+    const target = { x: stop.destinationX, y: stop.destinationY };
+    outbound.push(...safeSegment(current, target, areas).slice(1));
+    current = target;
+  });
+  const returning = safeSegment(current, origin, areas);
+  return { outbound, returning, complete: [...outbound, ...returning.slice(1)] };
+};
 const getPointAtProgress = (points, progress) => {
   const segments = points.slice(1).map((point, index) => {
     const previous = points[index];
@@ -37,6 +100,7 @@ const HangarRouteMap = ({
   const [search, setSearch] = useState('');
   const [selectedStopId, setSelectedStopId] = useState(null);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
+  const [alertAreas, setAlertAreas] = useState([]);
   const [animationTime, setAnimationTime] = useState(() => Date.now());
   const drag = useRef(null);
   const mapContainerRef = useRef(null);
@@ -74,14 +138,19 @@ const HangarRouteMap = ({
     const interval = window.setInterval(() => setAnimationTime(Date.now()), 250);
     return () => window.clearInterval(interval);
   }, []);
+  useEffect(() => {
+    listAlertAreas().then(setAlertAreas).catch(() => setAlertAreas([]));
+  }, []);
   const routes = useMemo(() => drones.map((drone, index) => {
     const stops = (drone.routeDeliveryIds || []).map(id => deliveries.find(delivery => delivery.id === id)).filter(Boolean);
+    const geometry = safeRoute(hangar, stops, alertAreas);
     return {
       drone,
       stops,
+      ...geometry,
       color: routeColors[index % routeColors.length]
     };
-  }).filter(route => route.stops.length > 0), [drones, deliveries]);
+  }).filter(route => route.stops.length > 0), [drones, deliveries, hangar, alertAreas]);
   const hoveredStopInfo = useMemo(() => {
     for (const route of routes) {
       const index = route.stops.findIndex(stop => stop.id === hoveredMarker);
@@ -120,6 +189,10 @@ const HangarRouteMap = ({
       x: stop.destinationX,
       y: stop.destinationY
     })));
+    alertAreas.forEach(area => {
+      points.push({ x: area.minX, y: area.minY });
+      points.push({ x: area.maxX, y: area.maxY });
+    });
     const minX = Math.min(...points.map(point => point.x));
     const maxX = Math.max(...points.map(point => point.x));
     const minY = Math.min(...points.map(point => point.y));
@@ -133,7 +206,7 @@ const HangarRouteMap = ({
       width: width + padding * 2,
       height: height + padding * 2
     };
-  }, [hangar, routes]);
+  }, [hangar, routes, alertAreas]);
   const viewWidth = bounds.width / zoom;
   const viewHeight = bounds.height / zoom;
   const defaultPan = {
@@ -214,7 +287,7 @@ const HangarRouteMap = ({
     const progress = duration > 0 ? (animationTime - startedAt) / duration : 0;
     return {
       ...route,
-      position: getPointAtProgress(completeRoutePoints(route.stops), progress)
+      position: getPointAtProgress(route.complete, progress)
     };
   }).filter(route => route.drone.status === 'EM_ROTA' && route.drone.routeStartedAt && route.drone.routeEstimatedCompletionAt);
   const changeZoom = factor => setZoom(current => Math.min(6, Math.max(1, current * factor)));
@@ -309,9 +382,19 @@ const HangarRouteMap = ({
             </pattern>
           </defs>
           <rect x={bounds.x - bounds.width} y={bounds.y - bounds.height} width={bounds.width * 3} height={bounds.height * 3} fill="url(#street-grid)" />
+          {alertAreas.map(area => {
+            const visual = alertTypes[area.type];
+            return <g key={`alert-${area.id}`}>
+              <rect x={area.minX} y={area.minY} width={area.maxX - area.minX} height={area.maxY - area.minY} fill={visual.color} fillOpacity="0.34" stroke={visual.color} strokeWidth={markerSize * 0.24} />
+              <foreignObject pointerEvents="none" x={(area.minX + area.maxX) / 2 - markerSize * 1.8} y={(area.minY + area.maxY) / 2 - markerSize * 1.8} width={markerSize * 3.6} height={markerSize * 3.6}>
+                <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'white', fontSize: `${markerSize * 2}px`, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.45))' }}><i className={`bi ${visual.icon}`} /></div>
+              </foreignObject>
+              <title>{area.description}</title>
+            </g>;
+          })}
           {visibleRoutes.map(route => <g key={`route-${route.drone.id}`}>
-            <polyline points={outboundRoutePoints(route.stops)} fill="none" stroke={route.color} strokeWidth={markerSize * 0.65} strokeLinejoin="round" strokeLinecap="round" opacity="0.95" />
-            {showReturnRoutes && <polyline points={returnRoutePoints(route.stops)} fill="none" stroke={route.color} strokeWidth={markerSize * 0.55} strokeDasharray={`${markerSize * 1.8} ${markerSize * 1.15}`} strokeLinejoin="round" strokeLinecap="round" opacity="0.9" />}
+            <polyline points={route.outbound.map(point => `${point.x},${point.y}`).join(' ')} fill="none" stroke={route.color} strokeWidth={markerSize * 0.65} strokeLinejoin="round" strokeLinecap="round" opacity="0.95" />
+            {showReturnRoutes && <polyline points={route.returning.map(point => `${point.x},${point.y}`).join(' ')} fill="none" stroke={route.color} strokeWidth={markerSize * 0.55} strokeDasharray={`${markerSize * 1.8} ${markerSize * 1.15}`} strokeLinejoin="round" strokeLinecap="round" opacity="0.9" />}
           </g>)}
           {visibleRoutes.map(route => <g key={`markers-${route.drone.id}`}>
             {route.stops.map((stop, index) => <g key={stop.id} onMouseEnter={() => setHoveredMarker(stop.id)} onMouseLeave={() => setHoveredMarker(null)} className="[cursor:pointer]">

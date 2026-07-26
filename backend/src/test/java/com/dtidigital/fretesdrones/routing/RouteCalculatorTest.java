@@ -1,6 +1,7 @@
 package com.dtidigital.fretesdrones.routing;
 
 import com.dtidigital.fretesdrones.model.Entrega;
+import com.dtidigital.fretesdrones.model.AlertArea;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -43,6 +44,18 @@ class RouteCalculatorTest {
 
         assertEquals(List.of(), plan.deliveries());
         assertEquals(0.0, plan.distance());
+    }
+
+    @Test
+    void choosesShortestDetourKeepingOneCoordinateAwayFromRestrictedArea() {
+        AlertArea area = AlertArea.builder()
+                .minX(2.0).maxX(2.0).minY(0.0).maxY(0.0).build();
+
+        RoutePlan plan = calculator.calculate(
+                0, 0, List.of(delivery("e1", 4, 0)), List.of(area)
+        );
+
+        assertEquals(16.0, plan.distance());
     }
 
     private Entrega delivery(String id, int x, int y) {
