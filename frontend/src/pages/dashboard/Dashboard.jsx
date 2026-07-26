@@ -39,7 +39,7 @@ const Dashboard = () => {
   const mapDeliveries = useMemo(() => deliveries.filter(delivery => !selectedHangar || delivery.hangarId === selectedHangar.id), [deliveries, selectedHangar]);
   const mapDrones = useMemo(() => drones.filter(drone => !selectedHangar || drone.hangarId === selectedHangar.id), [drones, selectedHangar]);
   return <div className="[min-height:100%] [background:linear-gradient(180deg,_#eef4ff_0%,_#f8fafc_100%)] [color:#10233d]">
-      <div className="[max-width:1120px] [margin:0_auto]">
+      <div className="[margin:0_auto]">
         <div className="[display:flex] [justify-content:space-between] [align-items:center] [margin-bottom:24px] [gap:16px] [flex-wrap:wrap]">
           <div>
             <h1 className="[margin:0]">Dashboard</h1>

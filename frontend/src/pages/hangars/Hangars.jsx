@@ -73,7 +73,7 @@ const Hangars = () => {
     }
   };
   return <div className="[min-height:100%] [background:#f4f7fb] [color:#10233d]">
-      <div className="[max-width:1120px] [margin:0_auto]">
+      <div className="[margin:0_auto]">
         <div className="[display:flex] [justify-content:space-between] [align-items:center] [margin-bottom:24px] [gap:16px]">
           <div>
             <h1 className="[margin:0]">Hangares</h1>

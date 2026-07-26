@@ -24,6 +24,11 @@ const statusColors = {
   INVIAVEL: '#c53030',
   AGUARDANDO_CONFIRMACAO: '#58708d'
 };
+const inviabilityMessages = {
+  PESO: 'Peso acima da capacidade dos drones deste hangar.',
+  DISTANCIA: 'Distância acima da autonomia dos drones deste hangar.',
+  PESO_E_DISTANCIA: 'Peso e distância acima da capacidade operacional dos drones deste hangar.'
+};
 const GerenciarEntregas = () => {
   const [hangars, setHangars] = useState([]);
   const {
@@ -149,7 +154,7 @@ const GerenciarEntregas = () => {
       await deleteDelivery(inviableDelivery.id);
       const nextDeliveries = deliveries.filter(delivery => delivery.id !== inviableDelivery.id);
       setDeliveries(nextDeliveries);
-      setPrepared(false);
+      setPrepared(true);
       setInviableDelivery(null);
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data || 'Nao foi possivel excluir a entrega.');
@@ -185,6 +190,9 @@ const GerenciarEntregas = () => {
         {delivery.weight} kg | Prioridade: {delivery.priority?.toLowerCase()}
       </div>
       {delivery.droneId && <div className="[margin-top:5px] [color:#58708d] [font-size:0.9rem]">Drone: {drones.find(drone => drone.id === delivery.droneId)?.name || delivery.droneId}</div>}
+      {delivery.status === 'INVIAVEL' && <div className="[margin-top:8px] [padding:8px_10px] [border-radius:8px] [background:#fff1f2] [color:#b42318] [font-size:0.85rem] [font-weight:700]">
+        Motivo: {inviabilityMessages[delivery.inviabilityReason] || 'Nenhum drone atende aos requisitos desta entrega.'}
+      </div>}
       {delivery.status === 'INVIAVEL' && <button onClick={() => openSplitModal(delivery)} className="[margin-top:10px] [padding:8px_11px] [border:0] [border-radius:8px] [background:#fee2e2] [color:#c53030] [font-weight:700] [cursor:pointer]">Tratar entrega</button>}
     </article>;
   const renderColumn = (title, status, description) => <section className="[padding:18px] [border-radius:16px] [background:white] [box-shadow:0_8px_24px_rgba(16,35,61,0.06)]">
@@ -222,14 +230,18 @@ const GerenciarEntregas = () => {
         </div>}
         {prepared && <div className="[display:grid] [grid-template-columns:repeat(auto-fit,_minmax(250px,_1fr))] [gap:16px]">
           {renderColumn('Fila de confirmadas', 'CONFIRMADA', 'Pedidos prontos para confirmação, ordenados por prioridade.')}
-          {renderColumn('Inviável', 'INVIAVEL', 'Nenhum drone deste hangar possui capacidade para o peso da entrega.')}
+          {renderColumn('Inviável', 'INVIAVEL', 'Entregas que excedem o peso, a distância ou ambos os limites operacionais.')}
         </div>}
       </>}
 
       {inviableDelivery && <div className="[position:fixed] [inset:0] [z-index:10] [display:grid] [place-items:center] [padding:20px] [background:rgba(16,35,61,0.58)]">
         <div className="[width:min(100%,_520px)] [padding:26px] [border-radius:18px] [background:white] [box-shadow:0_20px_60px_rgba(0,0,0,0.2)]">
           <h2 className="[margin-top:0]">Entrega inviável</h2>
-          <p className="[color:#58708d] [line-height:1.5]">A entrega de <strong>{inviableDelivery.weight} kg</strong> não pode ser atendida por nenhum drone. Escolha uma tratativa.</p>
+          <p className="[color:#58708d] [line-height:1.5]">A entrega de <strong>{inviableDelivery.weight} kg</strong> não pode ser atendida.</p>
+          <div className="[margin-bottom:16px] [padding:11px_13px] [border-radius:10px] [background:#fff1f2] [color:#b42318] [font-weight:700]">
+            Motivo: {inviabilityMessages[inviableDelivery.inviabilityReason] || 'Nenhum drone atende aos requisitos desta entrega.'}
+          </div>
+          {inviableDelivery.inviabilityReason === 'PESO' && <>
           <h3 className="[font-size:1rem]">Repartir entrega</h3>
           <label className="[display:block] [color:#58708d]">Quantidade de volumes</label>
           <select value={partitionCount} onChange={changePartitionCount} className="[width:100%] [margin:6px_0_12px] [padding:10px] [border-radius:8px] [border:1px_solid_#d6deea]">
@@ -240,10 +252,12 @@ const GerenciarEntregas = () => {
           <div className="[display:grid] [grid-template-columns:repeat(2,_1fr)] [gap:10px]">
             {partitionWeights.map((weight, index) => <input key={index} type="number" min="0.01" step="0.01" placeholder={`Volume ${index + 1} (kg)`} value={weight} onChange={event => setPartitionWeights(current => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} className="[padding:10px] [border-radius:8px] [border:1px_solid_#d6deea]" />)}
           </div>
+          </>}
+          {inviableDelivery.inviabilityReason !== 'PESO' && <p className="[color:#58708d] [line-height:1.5]">A divisão do peso não torna esta rota viável. Esta entrega pode apenas ser excluída.</p>}
           <div className="[display:flex] [justify-content:flex-end] [gap:10px] [margin-top:20px] [flex-wrap:wrap]">
             <button onClick={deleteInviable} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#fee2e2] [color:#c53030] [cursor:pointer]">Excluir entrega</button>
-            <button onClick={() => setInviableDelivery(null)} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#edf2f7] [color:#243b53] [cursor:pointer]">Decidir depois</button>
-            <button onClick={splitInviable} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#0f5bd7] [color:white] [font-weight:700] [cursor:pointer]">Confirmar divisão</button>
+            {inviableDelivery.inviabilityReason === 'PESO' && <button onClick={() => setInviableDelivery(null)} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#edf2f7] [color:#243b53] [cursor:pointer]">Decidir depois</button>}
+            {inviableDelivery.inviabilityReason === 'PESO' && <button onClick={splitInviable} disabled={loading} className="[padding:10px_14px] [border:0] [border-radius:8px] [background:#0f5bd7] [color:white] [font-weight:700] [cursor:pointer]">Confirmar divisão</button>}
           </div>
         </div>
       </div>}
