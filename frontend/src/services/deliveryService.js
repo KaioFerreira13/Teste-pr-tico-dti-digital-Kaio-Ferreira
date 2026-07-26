@@ -99,12 +99,25 @@ export const allocatePendingDeliveries = (deliveries, drones, hangar) => {
         (Math.abs(delivery.destinationX - hangar.positionX) +
           Math.abs(delivery.destinationY - hangar.positionY))
       : Number.POSITIVE_INFINITY;
+    const supportsWeight = drones.some(drone => delivery.weight <= drone.maxWeight);
+    const supportsDistance = drones.some(drone => roundTripDistance <= drone.autonomy);
     const canEverFit = drones.some(
       drone => delivery.weight <= drone.maxWeight && roundTripDistance <= drone.autonomy,
     );
     const target = nextDeliveries.find(item => item.id === delivery.id);
     target.status = canEverFit ? 'CONFIRMADA' : 'INVIAVEL';
     target.droneId = null;
+    if (canEverFit) {
+      delete target.inviabilityReason;
+    } else if (!supportsWeight && !supportsDistance) {
+      target.inviabilityReason = 'PESO_E_DISTANCIA';
+    } else if (!supportsWeight) {
+      target.inviabilityReason = 'PESO';
+    } else if (!supportsDistance) {
+      target.inviabilityReason = 'DISTANCIA';
+    } else {
+      target.inviabilityReason = 'PESO_E_DISTANCIA';
+    }
   });
 
   return { deliveries: nextDeliveries, drones };

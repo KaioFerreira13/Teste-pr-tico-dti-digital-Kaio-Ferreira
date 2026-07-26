@@ -39,7 +39,7 @@ const PedidosPorEstado = () => {
     return groupDeliveriesByStatus(deliveries, statusColumns);
   }, [deliveries]);
   return <div className="[min-height:100%] [background:linear-gradient(180deg,_#eef4ff_0%,_#f8fafc_100%)] [color:#10233d]">
-      <div className="[max-width:1240px] [margin:0_auto]">
+      <div className="[margin:0_auto]">
         <div className="[display:flex] [justify-content:space-between] [align-items:center] [margin-bottom:24px] [gap:16px] [flex-wrap:wrap]">
           <div>
             <h1 className="[margin:0]">Pedidos por estado</h1>

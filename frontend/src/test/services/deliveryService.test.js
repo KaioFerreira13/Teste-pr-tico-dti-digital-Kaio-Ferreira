@@ -58,6 +58,20 @@ describe('deliveryService', () => {
 
     expect(result.deliveries.find(item => item.id === '1').status).toBe('CONFIRMADA');
     expect(result.deliveries.find(item => item.id === '2').status).toBe('INVIAVEL');
+    expect(result.deliveries.find(item => item.id === '2').inviabilityReason).toBe('PESO');
+  });
+
+  it('identifies distance and combined viability restrictions', () => {
+    const hangar = { positionX: 0, positionY: 0 };
+    const drones = [{ maxWeight: 10, autonomy: 20 }];
+    const deliveries = [
+      { id: 'distance', status: 'AGUARDANDO_CONFIRMACAO', weight: 5, destinationX: 20, destinationY: 0 },
+      { id: 'both', status: 'AGUARDANDO_CONFIRMACAO', weight: 15, destinationX: 20, destinationY: 0 },
+    ];
+
+    const result = allocatePendingDeliveries(deliveries, drones, hangar);
+
+    expect(result.deliveries.find(item => item.id === 'distance').inviabilityReason).toBe('DISTANCIA');
+    expect(result.deliveries.find(item => item.id === 'both').inviabilityReason).toBe('PESO_E_DISTANCIA');
   });
 });
-
