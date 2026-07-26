@@ -44,13 +44,38 @@ class EntregaControllerBusinessRulesTest {
         DeliveryService deliveryService = new DeliveryService(
                 entregaRepository, hangarAccessService, deliveryMapper
         );
-        DeliveryManagementService managementService = new DeliveryManagementService(
+        DeliveryManagementQueryService queryService = new DeliveryManagementQueryService(
                 entregaRepository,
                 droneRepository,
                 hangarAccessService,
-                allocationService,
                 deliveryMapper,
                 droneMapper
+        );
+        DeliveryDispatchPreparationService preparationService =
+                new DeliveryDispatchPreparationService(
+                        entregaRepository,
+                        droneRepository,
+                        hangarAccessService,
+                        queryService
+                );
+        DeliveryDispatchConfirmationService confirmationService =
+                new DeliveryDispatchConfirmationService(
+                        entregaRepository,
+                        hangarAccessService,
+                        queryService,
+                        new DeliveryViabilityService(),
+                        allocationService
+                );
+        DeliveryQueueService queueService = new DeliveryQueueService(
+                entregaRepository,
+                hangarAccessService,
+                queryService
+        );
+        DeliveryManagementService managementService = new DeliveryManagementService(
+                queryService,
+                preparationService,
+                confirmationService,
+                queueService
         );
         DeliverySplitService splitService = new DeliverySplitService(
                 entregaRepository,
