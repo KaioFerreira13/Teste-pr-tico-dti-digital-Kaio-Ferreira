@@ -61,23 +61,38 @@ public class DeliveryCompletionService {
 
         List<Drone> chargingDrones = droneRepository.findAll().stream()
                 .filter(drone -> drone.getStatus() == DroneStatus.RECARREGANDO)
-                .filter(drone -> drone.getChargingStartedAt() != null)
                 .toList();
         for (Drone drone : chargingDrones) {
+            double currentBatteryLevel = drone.getBatteryLevel() == null
+                    ? 0.0
+                    : drone.getBatteryLevel();
+            if (currentBatteryLevel >= 100.0) {
+                makeAvailable(drone);
+                continue;
+            }
+            if (drone.getChargingStartedAt() == null) {
+                drone.setChargingStartedAt(now);
+                droneRepository.save(drone);
+                continue;
+            }
             double elapsedMinutes = Duration.between(drone.getChargingStartedAt(), now).toMillis() / 60000.0;
-            double batteryLevel = Math.min(100.0, (drone.getBatteryLevel() == null ? 0.0 : drone.getBatteryLevel()) + elapsedMinutes * 3.0);
+            double batteryLevel = Math.min(100.0, currentBatteryLevel + elapsedMinutes * 3.0);
             drone.setBatteryLevel(batteryLevel);
             drone.setChargingStartedAt(now);
             if (batteryLevel >= 100.0) {
-                drone.setBatteryLevel(100.0);
-                drone.setChargingStartedAt(null);
-                drone.setStatus(DroneStatus.DISPONIVEL);
+                makeAvailable(drone);
+                continue;
             }
             droneRepository.save(drone);
-            if (drone.getStatus() == DroneStatus.DISPONIVEL) {
-                allocationService.allocateConfirmed(drone.getUserId(), drone.getHangarId());
-            }
         }
+    }
+
+    private void makeAvailable(Drone drone) {
+        drone.setBatteryLevel(100.0);
+        drone.setChargingStartedAt(null);
+        drone.setStatus(DroneStatus.DISPONIVEL);
+        droneRepository.save(drone);
+        allocationService.allocateConfirmed(drone.getUserId(), drone.getHangarId());
     }
 
     private void updateBatteriesInRoute(Instant now) {

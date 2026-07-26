@@ -119,14 +119,29 @@ class DeliveryCompletionServiceTest {
     }
 
     @Test
-    void chargingWithoutStartTimestampDoesNotChangeBattery() {
+    void chargingWithoutStartTimestampInitializesChargingClock() {
         Drone drone = chargingDrone(50.0, null);
         when(droneRepository.findAll()).thenReturn(List.of(drone));
 
         service.completeFinishedRoutes();
 
         assertEquals(50.0, drone.getBatteryLevel());
-        verify(droneRepository, never()).save(drone);
+        assertTrue(drone.getChargingStartedAt() != null);
+        verify(droneRepository).save(drone);
+    }
+
+    @Test
+    void fullyChargedDroneWithoutStartTimestampBecomesAvailable() {
+        Drone drone = chargingDrone(100.0, null);
+        when(droneRepository.findAll()).thenReturn(List.of(drone));
+
+        service.completeFinishedRoutes();
+
+        assertEquals(DroneStatus.DISPONIVEL, drone.getStatus());
+        assertEquals(100.0, drone.getBatteryLevel());
+        assertNull(drone.getChargingStartedAt());
+        verify(droneRepository).save(drone);
+        verify(allocationService).allocateConfirmed("u1", "h1");
     }
 
     private Drone inRouteDrone(Instant startedAt, Instant completionAt) {
