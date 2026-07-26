@@ -1,352 +1,121 @@
 package com.dtidigital.fretesdrones.controller;
 
-import com.dtidigital.fretesdrones.dto.EntregaRequest;
-import com.dtidigital.fretesdrones.dto.EntregaResponse;
-import com.dtidigital.fretesdrones.dto.DroneResponse;
-import com.dtidigital.fretesdrones.model.DeliveryPriority;
-import com.dtidigital.fretesdrones.model.DeliveryStatus;
-import com.dtidigital.fretesdrones.model.Drone;
-import com.dtidigital.fretesdrones.model.DroneStatus;
-import com.dtidigital.fretesdrones.model.Entrega;
-import com.dtidigital.fretesdrones.model.Hangar;
+import com.dtidigital.fretesdrones.dto.*;
 import com.dtidigital.fretesdrones.model.User;
-import com.dtidigital.fretesdrones.repository.HangarRepository;
-import com.dtidigital.fretesdrones.repository.EntregaRepository;
-import com.dtidigital.fretesdrones.repository.UserRepository;
-import com.dtidigital.fretesdrones.repository.DroneRepository;
-import com.dtidigital.fretesdrones.service.DeliveryAllocationService;
+import com.dtidigital.fretesdrones.security.AuthenticatedUserService;
+import com.dtidigital.fretesdrones.service.DeliveryManagementService;
+import com.dtidigital.fretesdrones.service.DeliveryService;
+import com.dtidigital.fretesdrones.service.DeliverySplitService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Comparator;
-import java.util.Map;
-import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/entregas")
 public class EntregaController {
 
-    private final EntregaRepository entregaRepository;
-    private final UserRepository userRepository;
-    private final HangarRepository hangarRepository;
-    private final DroneRepository droneRepository;
-    private final DeliveryAllocationService allocationService;
+    private final DeliveryService deliveryService;
+    private final DeliveryManagementService managementService;
+    private final DeliverySplitService splitService;
+    private final AuthenticatedUserService authenticatedUserService;
 
-    public EntregaController(EntregaRepository entregaRepository, UserRepository userRepository, HangarRepository hangarRepository, DroneRepository droneRepository, DeliveryAllocationService allocationService) {
-        this.entregaRepository = entregaRepository;
-        this.userRepository = userRepository;
-        this.hangarRepository = hangarRepository;
-        this.droneRepository = droneRepository;
-        this.allocationService = allocationService;
+    public EntregaController(
+            DeliveryService deliveryService,
+            DeliveryManagementService managementService,
+            DeliverySplitService splitService,
+            AuthenticatedUserService authenticatedUserService
+    ) {
+        this.deliveryService = deliveryService;
+        this.managementService = managementService;
+        this.splitService = splitService;
+        this.authenticatedUserService = authenticatedUserService;
     }
 
-    @GetMapping("/me")
+    @GetMapping({"", "/me"})
     public List<EntregaResponse> getMyDeliveries(Authentication authentication) {
-        User user = getCurrentUser(authentication);
-        return entregaRepository.findByUserId(user.getId()).stream().map(this::toResponse).toList();
+        return deliveryService.findByUser(currentUser(authentication));
     }
 
     @GetMapping("/gerenciamento/{hangarId}")
-    public ResponseEntity<?> getManagement(@PathVariable String hangarId, Authentication authentication) {
-        User user = getCurrentUser(authentication);
-        getOwnedHangar(hangarId, user);
-        return ResponseEntity.ok(buildManagement(hangarId, user));
+    public DeliveryManagementResponse getManagement(
+            @PathVariable String hangarId,
+            Authentication authentication
+    ) {
+        return managementService.getManagement(hangarId, currentUser(authentication));
     }
 
     @PostMapping("/gerenciamento/{hangarId}/preparar")
-    public ResponseEntity<?> prepareDispatch(@PathVariable String hangarId, Authentication authentication) {
-        User user = getCurrentUser(authentication);
-        getOwnedHangar(hangarId, user);
-
-        List<Drone> drones = droneRepository.findByUserId(user.getId()).stream()
-                .filter(drone -> hangarId.equals(drone.getHangarId())).toList();
-        List<Entrega> deliveries = entregaRepository.findByUserId(user.getId()).stream()
-                .filter(delivery -> hangarId.equals(delivery.getHangarId()))
-                .filter(delivery -> delivery.getStatus() == null || delivery.getStatus() == DeliveryStatus.AGUARDANDO_CONFIRMACAO || delivery.getStatus() == DeliveryStatus.NA_FILA)
-                .sorted(Comparator.comparing(Entrega::getPriority, Comparator.nullsFirst(Comparator.naturalOrder())).reversed())
-                .toList();
-
-        Map<String, Double> loads = new HashMap<>();
-        for (Drone drone : drones) {
-            if (drone.getStatus() == null) drone.setStatus(DroneStatus.DISPONIVEL);
-            loads.put(drone.getId(), drone.getCurrentLoad() == null ? 0.0 : drone.getCurrentLoad());
-        }
-
-        for (Entrega delivery : deliveries) {
-            Drone best = drones.stream()
-                    .filter(drone -> drone.getStatus() == DroneStatus.DISPONIVEL)
-                    .filter(drone -> drone.getMaxWeight() != null && delivery.getWeight() != null && delivery.getWeight() <= drone.getMaxWeight())
-                    .filter(drone -> loads.get(drone.getId()) + delivery.getWeight() <= drone.getMaxWeight())
-                    .min(Comparator.comparingDouble(drone -> drone.getMaxWeight() - (loads.get(drone.getId()) + delivery.getWeight())))
-                    .orElse(null);
-
-            boolean canEverFit = drones.stream().anyMatch(drone -> drone.getMaxWeight() != null && delivery.getWeight() != null && delivery.getWeight() <= drone.getMaxWeight());
-            if (best == null) {
-                delivery.setStatus(canEverFit ? DeliveryStatus.NA_FILA : DeliveryStatus.INVIAVEL);
-                delivery.setDroneId(null);
-            } else {
-                loads.put(best.getId(), loads.get(best.getId()) + delivery.getWeight());
-                delivery.setStatus(DeliveryStatus.EM_DESPACHO);
-                delivery.setDroneId(best.getId());
-                best.setStatus(DroneStatus.EM_DESPACHO);
-            }
-            entregaRepository.save(delivery);
-        }
-        for (Drone drone : drones) {
-            drone.setCurrentLoad(loads.get(drone.getId()));
-            droneRepository.save(drone);
-        }
-        return ResponseEntity.ok(buildManagement(hangarId, user));
+    public DeliveryManagementResponse prepareDispatch(
+            @PathVariable String hangarId,
+            Authentication authentication
+    ) {
+        return managementService.prepareDispatch(hangarId, currentUser(authentication));
     }
 
     @PostMapping("/gerenciamento/{hangarId}/confirmar")
-    public ResponseEntity<?> confirmDispatch(@PathVariable String hangarId, @RequestBody ConfirmRequest request, Authentication authentication) {
-        User user = getCurrentUser(authentication);
-        Hangar selectedHangar = getOwnedHangar(hangarId, user);
-        if (request == null || request.deliveryIds() == null || request.deliveryIds().isEmpty()) {
-            return ResponseEntity.badRequest().body("Nenhuma entrega foi enviada para confirmacao.");
-        }
-
-        List<Drone> drones = droneRepository.findByUserId(user.getId()).stream()
-                .filter(drone -> hangarId.equals(drone.getHangarId())).toList();
-        boolean hasInviableDelivery = entregaRepository.findByUserId(user.getId()).stream()
-                .filter(delivery -> hangarId.equals(delivery.getHangarId()))
-                .filter(delivery -> delivery.getStatus() == null || delivery.getStatus() == DeliveryStatus.AGUARDANDO_CONFIRMACAO || delivery.getStatus() == DeliveryStatus.INVIAVEL)
-                .anyMatch(delivery -> {
-                    double roundTripDistance = 2.0 * (
-                            Math.abs(delivery.getDestinationX() - selectedHangar.getPositionX())
-                                    + Math.abs(delivery.getDestinationY() - selectedHangar.getPositionY())
-                    );
-                    return drones.stream().noneMatch(drone ->
-                            drone.getMaxWeight() != null
-                                    && drone.getAutonomy() != null
-                                    && delivery.getWeight() != null
-                                    && delivery.getWeight() <= drone.getMaxWeight()
-                                    && roundTripDistance <= drone.getAutonomy()
-                    );
-                });
-        if (hasInviableDelivery) {
-            return ResponseEntity.badRequest().body("Trate todas as entregas inviaveis antes de confirmar a movimentacao.");
-        }
-        for (String deliveryId : request.deliveryIds()) {
-            Entrega delivery = entregaRepository.findById(deliveryId).orElse(null);
-            if (delivery == null || !user.getId().equals(delivery.getUserId()) || !hangarId.equals(delivery.getHangarId())) {
-                return ResponseEntity.badRequest().body("Uma entrega informada nao pertence ao usuario ou ao hangar selecionado.");
-            }
-            if (delivery.getStatus() != null
-                    && delivery.getStatus() != DeliveryStatus.AGUARDANDO_CONFIRMACAO
-                    && delivery.getStatus() != DeliveryStatus.CONFIRMADA
-                    && delivery.getStatus() != DeliveryStatus.NA_FILA) {
-                return ResponseEntity.badRequest().body("A entrega ja foi tratada e nao pode ser movimentada novamente.");
-            }
-            delivery.setStatus(DeliveryStatus.CONFIRMADA);
-            delivery.setDroneId(null);
-            entregaRepository.save(delivery);
-        }
-        allocationService.allocateConfirmed(user.getId(), hangarId);
-        return ResponseEntity.ok(buildManagement(hangarId, user));
+    public DeliveryManagementResponse confirmDispatch(
+            @PathVariable String hangarId,
+            @RequestBody ConfirmDispatchRequest request,
+            Authentication authentication
+    ) {
+        return managementService.confirmDispatch(
+                hangarId,
+                request == null ? null : request.deliveryIds(),
+                currentUser(authentication)
+        );
     }
 
     @PostMapping("/gerenciamento/{hangarId}/limpar-fila")
-    public ResponseEntity<?> clearQueue(@PathVariable String hangarId, Authentication authentication) {
-        User user = getCurrentUser(authentication);
-        getOwnedHangar(hangarId, user);
-        entregaRepository.findByUserId(user.getId()).stream()
-                .filter(delivery -> hangarId.equals(delivery.getHangarId()))
-                .filter(delivery -> delivery.getStatus() == DeliveryStatus.CONFIRMADA || delivery.getStatus() == DeliveryStatus.NA_FILA)
-                .forEach(delivery -> {
-                    delivery.setStatus(DeliveryStatus.AGUARDANDO_CONFIRMACAO);
-                    delivery.setDroneId(null);
-                    entregaRepository.save(delivery);
-                });
-        return ResponseEntity.ok(buildManagement(hangarId, user));
-    }
-
-    private ManagementResponse buildManagement(String hangarId, User user) {
-        List<EntregaResponse> deliveries = entregaRepository.findByUserId(user.getId()).stream()
-                .filter(delivery -> hangarId.equals(delivery.getHangarId())).map(this::toResponse).toList();
-        List<DroneResponse> drones = droneRepository.findByUserId(user.getId()).stream()
-                .filter(drone -> hangarId.equals(drone.getHangarId())).map(this::toDroneResponse).toList();
-        return new ManagementResponse(deliveries, drones);
+    public DeliveryManagementResponse clearQueue(
+            @PathVariable String hangarId,
+            Authentication authentication
+    ) {
+        return managementService.clearQueue(hangarId, currentUser(authentication));
     }
 
     @PostMapping
-    public ResponseEntity<?> createDelivery(@Valid @RequestBody EntregaRequest request, Authentication authentication) {
-        User user = getCurrentUser(authentication);
-
-        DeliveryPriority priority = parsePriority(request.getPriority());
-        if (priority == null) {
-            return ResponseEntity.badRequest().body("A prioridade deve ser baixa, media ou alta.");
-        }
-
-        Hangar hangar = getOwnedHangar(request.getHangarId(), user);
-        Integer codigo = nextDeliveryCode();
-
-        Entrega entrega = new Entrega(
-                request.getWeight(),
-                request.getDestinationX(),
-                request.getDestinationY(),
-                priority,
-                request.getRecipientName().trim(),
-                hangar.getId(),
-                user.getId()
-        );
-        entrega.setCodigo(codigo);
-
-        return ResponseEntity.ok(toResponse(entregaRepository.save(entrega)));
+    public EntregaResponse createDelivery(
+            @Valid @RequestBody EntregaRequest request,
+            Authentication authentication
+    ) {
+        return deliveryService.create(request, currentUser(authentication));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateDelivery(@PathVariable String id, @Valid @RequestBody EntregaRequest request, Authentication authentication) {
-        User user = getCurrentUser(authentication);
-        DeliveryPriority priority = parsePriority(request.getPriority());
-        if (priority == null) {
-            return ResponseEntity.badRequest().body("A prioridade deve ser baixa, media ou alta.");
-        }
-
-        Hangar hangar = getOwnedHangar(request.getHangarId(), user);
-
-        return entregaRepository.findById(id)
-                .map(entrega -> {
-                    if (!entrega.getUserId().equals(user.getId())) {
-                        return ResponseEntity.status(403).body("Voce nao pode alterar esta entrega.");
-                    }
-                    if (entrega.getStatus() == DeliveryStatus.EM_DESPACHO || entrega.getStatus() == DeliveryStatus.ENTREGUE) {
-                        return ResponseEntity.badRequest().body("Entregas ja despachadas nao podem ser editadas.");
-                    }
-
-                    entrega.setWeight(request.getWeight());
-                    entrega.setDestinationX(request.getDestinationX());
-                    entrega.setDestinationY(request.getDestinationY());
-                    entrega.setPriority(priority);
-                    entrega.setRecipientName(request.getRecipientName().trim());
-                    entrega.setHangarId(hangar.getId());
-                    return ResponseEntity.ok(toResponse(entregaRepository.save(entrega)));
-                })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public EntregaResponse updateDelivery(
+            @PathVariable String id,
+            @Valid @RequestBody EntregaRequest request,
+            Authentication authentication
+    ) {
+        return deliveryService.update(id, request, currentUser(authentication));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteDelivery(@PathVariable String id, Authentication authentication) {
-        User user = getCurrentUser(authentication);
-
-        return entregaRepository.findById(id)
-                .map(entrega -> {
-                    if (!entrega.getUserId().equals(user.getId())) {
-                        return ResponseEntity.status(403).body("Voce nao pode excluir esta entrega.");
-                    }
-                    entregaRepository.delete(entrega);
-                    return ResponseEntity.ok().build();
-                })
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    private DeliveryPriority parsePriority(String priority) {
-        try {
-            return DeliveryPriority.valueOf(priority.trim().toUpperCase());
-        } catch (Exception exception) {
-            return null;
-        }
-    }
-
-    private User getCurrentUser(Authentication authentication) {
-        String email = authentication.getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
-    }
-
-    private Hangar getOwnedHangar(String hangarId, User user) {
-        return hangarRepository.findById(hangarId)
-                .filter(hangar -> hangar.getUserId().equals(user.getId()))
-                .orElseThrow(() -> new IllegalArgumentException("Selecione um hangar valido do seu cadastro."));
-    }
-
-    private EntregaResponse toResponse(Entrega entrega) {
-        return new EntregaResponse(
-                entrega.getId(),
-                entrega.getCodigo(),
-                entrega.getWeight(),
-                entrega.getDestinationX(),
-                entrega.getDestinationY(),
-                entrega.getPriority(),
-                entrega.getRecipientName(),
-                entrega.getHangarId(),
-                entrega.getStatus() == null ? DeliveryStatus.AGUARDANDO_CONFIRMACAO : entrega.getStatus(),
-                entrega.getDroneId(),
-                entrega.getEstimatedDeliveryAt()
-        );
+    public ResponseEntity<Void> deleteDelivery(
+            @PathVariable String id,
+            Authentication authentication
+    ) {
+        deliveryService.delete(id, currentUser(authentication));
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/repartir")
-    public ResponseEntity<?> splitDelivery(@PathVariable String id, @RequestBody SplitRequest request, Authentication authentication) {
-        User user = getCurrentUser(authentication);
-        Entrega original = entregaRepository.findById(id).orElse(null);
-        if (original == null) return ResponseEntity.notFound().build();
-        if (!user.getId().equals(original.getUserId())) return ResponseEntity.status(403).body("Voce nao pode alterar esta entrega.");
-        Hangar originalHangar = hangarRepository.findById(original.getHangarId()).orElse(null);
-        double originalRoundTripDistance = originalHangar == null ? Double.POSITIVE_INFINITY : 2.0 * (
-                Math.abs(original.getDestinationX() - originalHangar.getPositionX())
-                        + Math.abs(original.getDestinationY() - originalHangar.getPositionY())
-        );
-        boolean actuallyInviable = droneRepository.findByUserId(user.getId()).stream()
-                .filter(drone -> original.getHangarId().equals(drone.getHangarId()))
-                .noneMatch(drone -> drone.getMaxWeight() != null
-                        && drone.getAutonomy() != null
-                        && original.getWeight() != null
-                        && original.getWeight() <= drone.getMaxWeight()
-                        && originalRoundTripDistance <= drone.getAutonomy());
-        boolean treatableStatus = original.getStatus() == null || original.getStatus() == DeliveryStatus.AGUARDANDO_CONFIRMACAO || original.getStatus() == DeliveryStatus.INVIAVEL;
-        if (!actuallyInviable || !treatableStatus || request == null || request.weights() == null || request.weights().size() < 2 || request.weights().stream().anyMatch(weight -> weight == null || weight <= 0)) {
-            return ResponseEntity.badRequest().body("Informe pelo menos duas particoes com pesos positivos para uma entrega inviavel.");
-        }
-        double total = request.weights().stream().mapToDouble(Double::doubleValue).sum();
-        if (Math.abs(total - original.getWeight()) > 0.000001) {
-            return ResponseEntity.badRequest().body("A soma das particoes deve ser igual ao peso total da entrega.");
-        }
-
-        int nextCode = nextDeliveryCode();
-        List<Entrega> partitions = request.weights().stream().map(weight -> new Entrega(
-                weight, original.getDestinationX(), original.getDestinationY(), original.getPriority(), original.getRecipientName(), original.getHangarId(), original.getUserId()
-        )).toList();
-        for (int index = 0; index < partitions.size(); index++) {
-            partitions.get(index).setCodigo(nextCode + index);
-        }
-        entregaRepository.delete(original);
-        return ResponseEntity.ok(partitions.stream().map(entregaRepository::save).map(this::toResponse).toList());
-    }
-
-    private DroneResponse toDroneResponse(Drone drone) {
-        return new DroneResponse(
-                drone.getId(),
-                drone.getName(),
-                drone.getAutonomy(),
-                drone.getMaxWeight(),
-                drone.getAverageSpeed(),
-                drone.getHangarId(),
-                drone.getModelId(),
-                drone.getStatus() == null ? DroneStatus.DISPONIVEL : drone.getStatus(),
-                drone.getCurrentLoad() == null ? 0.0 : drone.getCurrentLoad(),
-                drone.getRouteDeliveryIds(),
-                drone.getRouteDistance(),
-                drone.getRouteStatus(),
-                drone.getRouteStartedAt(),
-                drone.getRouteEstimatedCompletionAt(),
-                drone.getBatteryLevel() == null ? 100.0 : drone.getBatteryLevel(),
-                drone.getChargingStartedAt()
+    public List<EntregaResponse> splitDelivery(
+            @PathVariable String id,
+            @RequestBody SplitDeliveryRequest request,
+            Authentication authentication
+    ) {
+        return splitService.split(
+                id,
+                request == null ? null : request.weights(),
+                currentUser(authentication)
         );
     }
 
-    public record ManagementResponse(List<EntregaResponse> deliveries, List<DroneResponse> drones) {}
-    public record ConfirmRequest(List<String> deliveryIds) {}
-    public record SplitRequest(List<Double> weights) {}
-
-    private int nextDeliveryCode() {
-        return entregaRepository.findTopByOrderByCodigoDesc()
-                .map(Entrega::getCodigo)
-                .map(code -> code + 1)
-                .orElse(0);
+    private User currentUser(Authentication authentication) {
+        return authenticatedUserService.get(authentication);
     }
 }

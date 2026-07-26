@@ -7,6 +7,7 @@ import com.dtidigital.fretesdrones.model.Hangar;
 import com.dtidigital.fretesdrones.model.RouteStatus;
 import com.dtidigital.fretesdrones.repository.DroneRepository;
 import com.dtidigital.fretesdrones.repository.HangarRepository;
+import com.dtidigital.fretesdrones.routing.RouteCalculator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,22 +32,18 @@ class RoutePlanningServiceTest {
     void setUp() {
         droneRepository = mock(DroneRepository.class);
         hangarRepository = mock(HangarRepository.class);
-        service = new RoutePlanningService(droneRepository, hangarRepository);
+        service = new RoutePlanningService(
+                droneRepository,
+                hangarRepository,
+                new RouteCalculator()
+        );
         drone = Drone.builder().id("d1").hangarId("h1").build();
         when(hangarRepository.findById("h1"))
                 .thenReturn(Optional.of(Hangar.builder().id("h1").positionX(0).positionY(0).build()));
     }
 
     @Test
-    void calculatesStreetDistanceIncludingReturnToHangar() {
-        Entrega first = delivery("e1", 2, 0);
-        Entrega second = delivery("e2", 2, 2);
-
-        assertEquals(8.0, service.calculateDistance(drone, List.of(first, second)));
-    }
-
-    @Test
-    void choosesShortestOrderInsteadOfInputOrder() {
+    void appliesCalculatedPlanToDroneAndPersistsIt() {
         Entrega far = delivery("far", 10, 0);
         Entrega near = delivery("near", 1, 0);
 

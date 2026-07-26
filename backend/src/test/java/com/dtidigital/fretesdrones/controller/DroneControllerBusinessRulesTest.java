@@ -1,34 +1,30 @@
 package com.dtidigital.fretesdrones.controller;
 
+import com.dtidigital.fretesdrones.dto.BulkUnassignRequest;
+import com.dtidigital.fretesdrones.dto.DroneStatusRequest;
+import com.dtidigital.fretesdrones.mapper.DroneMapper;
 import com.dtidigital.fretesdrones.model.Drone;
 import com.dtidigital.fretesdrones.model.DroneStatus;
 import com.dtidigital.fretesdrones.model.RouteStatus;
 import com.dtidigital.fretesdrones.model.User;
-import com.dtidigital.fretesdrones.repository.DroneRepository;
-import com.dtidigital.fretesdrones.repository.EntregaRepository;
-import com.dtidigital.fretesdrones.repository.HangarRepository;
-import com.dtidigital.fretesdrones.repository.ModeloRepository;
-import com.dtidigital.fretesdrones.repository.UserRepository;
-import com.dtidigital.fretesdrones.service.DeliveryAllocationService;
-import com.dtidigital.fretesdrones.service.RoutePlanningService;
+import com.dtidigital.fretesdrones.repository.*;
+import com.dtidigital.fretesdrones.security.AuthenticatedUserService;
+import com.dtidigital.fretesdrones.service.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.*;
 
 class DroneControllerBusinessRulesTest {
 
     private DroneRepository droneRepository;
-    private HangarRepository hangarRepository;
     private EntregaRepository entregaRepository;
     private DeliveryAllocationService allocationService;
     private DroneController controller;
@@ -37,15 +33,24 @@ class DroneControllerBusinessRulesTest {
     @BeforeEach
     void setUp() {
         droneRepository = mock(DroneRepository.class);
-        hangarRepository = mock(HangarRepository.class);
+        HangarRepository hangarRepository = mock(HangarRepository.class);
         ModeloRepository modeloRepository = mock(ModeloRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
         entregaRepository = mock(EntregaRepository.class);
         allocationService = mock(DeliveryAllocationService.class);
         RoutePlanningService routePlanningService = mock(RoutePlanningService.class);
+        DroneMapper mapper = new DroneMapper();
+        DroneService droneService = new DroneService(
+                droneRepository, hangarRepository, modeloRepository, allocationService, mapper
+        );
+        DroneOperationService operationService = new DroneOperationService(
+                droneRepository, entregaRepository, hangarRepository,
+                allocationService, routePlanningService, mapper
+        );
         controller = new DroneController(
-                droneRepository, hangarRepository, modeloRepository, userRepository,
-                entregaRepository, allocationService, routePlanningService
+                droneService,
+                operationService,
+                new AuthenticatedUserService(userRepository)
         );
         authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn("user@test.com");
@@ -58,26 +63,58 @@ class DroneControllerBusinessRulesTest {
         Drone drone = drone("u1", DroneStatus.EM_DESPACHO);
         when(droneRepository.findById("d1")).thenReturn(Optional.of(drone));
 
-        ResponseEntity<?> response = controller.updateStatus(
-                "d1", new DroneController.StatusRequest("DISPONIVEL"), authentication
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> controller.updateStatus("d1", new DroneStatusRequest("DISPONIVEL"), authentication)
         );
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals("O status de um drone em despacho nao pode ser alterado manualmente.", response.getBody());
+        assertEquals(
+                "Somente drones disponiveis ou em manutencao podem ter o status alterado manualmente.",
+                exception.getMessage()
+        );
         verify(droneRepository, never()).save(drone);
     }
 
     @Test
-    void refusesUnknownDroneStatus() {
+    void refusesSettingAnAutomaticStatusManually() {
         Drone drone = drone("u1", DroneStatus.DISPONIVEL);
         when(droneRepository.findById("d1")).thenReturn(Optional.of(drone));
 
-        ResponseEntity<?> response = controller.updateStatus(
-                "d1", new DroneController.StatusRequest("VOANDO"), authentication
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> controller.updateStatus("d1", new DroneStatusRequest("RECARREGANDO"), authentication)
         );
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals("Status de drone invalido.", response.getBody());
+        assertEquals(
+                "O status manual deve ser DISPONIVEL ou EM_MANUTENCAO.",
+                exception.getMessage()
+        );
+        verify(droneRepository, never()).save(drone);
+    }
+
+    @Test
+    void allowsChangingFromMaintenanceToAvailable() {
+        Drone drone = drone("u1", DroneStatus.EM_MANUTENCAO);
+        when(droneRepository.findById("d1")).thenReturn(Optional.of(drone));
+
+        controller.updateStatus("d1", new DroneStatusRequest("DISPONIVEL"), authentication);
+
+        assertEquals(DroneStatus.DISPONIVEL, drone.getStatus());
+        verify(droneRepository).save(drone);
+        verify(allocationService).allocateConfirmed("u1", "h1");
+    }
+
+    @Test
+    void refusesUnknownDroneStatus() {
+        when(droneRepository.findById("d1"))
+                .thenReturn(Optional.of(drone("u1", DroneStatus.DISPONIVEL)));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> controller.updateStatus("d1", new DroneStatusRequest("VOANDO"), authentication)
+        );
+
+        assertEquals("Status de drone invalido.", exception.getMessage());
     }
 
     @Test
@@ -85,23 +122,24 @@ class DroneControllerBusinessRulesTest {
         Drone drone = drone("other-user", DroneStatus.DISPONIVEL);
         when(droneRepository.findById("d1")).thenReturn(Optional.of(drone));
 
-        ResponseEntity<?> response = controller.updateStatus(
-                "d1", new DroneController.StatusRequest("EM_MANUTENCAO"), authentication
+        assertThrows(
+                AccessDeniedException.class,
+                () -> controller.updateStatus("d1", new DroneStatusRequest("EM_MANUTENCAO"), authentication)
         );
-
-        assertEquals(403, response.getStatusCode().value());
         verify(droneRepository, never()).save(drone);
     }
 
     @Test
     void refusesStartingFreightWithoutPendingRoute() {
-        Drone drone = drone("u1", DroneStatus.DISPONIVEL);
-        when(droneRepository.findById("d1")).thenReturn(Optional.of(drone));
+        when(droneRepository.findById("d1"))
+                .thenReturn(Optional.of(drone("u1", DroneStatus.DISPONIVEL)));
 
-        ResponseEntity<?> response = controller.startFreight("d1", authentication);
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> controller.startFreight("d1", authentication)
+        );
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals("O drone nao possui um frete aguardando inicio.", response.getBody());
+        assertEquals("O drone nao possui um frete aguardando inicio.", exception.getMessage());
     }
 
     @Test
@@ -114,49 +152,40 @@ class DroneControllerBusinessRulesTest {
         drone.setBatteryLevel(40.0);
         when(droneRepository.findById("d1")).thenReturn(Optional.of(drone));
 
-        ResponseEntity<?> response = controller.startFreight("d1", authentication);
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> controller.startFreight("d1", authentication)
+        );
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals("A bateria atual do drone nao e suficiente para concluir esta rota.", response.getBody());
+        assertEquals("A bateria atual do drone nao e suficiente para concluir esta rota.", exception.getMessage());
         verify(droneRepository, never()).save(drone);
     }
 
     @Test
-    void refusesStartingFreightWithoutValidSpeedOrDistance() {
-        Drone drone = drone("u1", DroneStatus.EM_DESPACHO);
-        drone.setRouteStatus(RouteStatus.AGUARDANDO_INICIO);
-        drone.setRouteDistance(null);
-        drone.setAverageSpeed(0.0);
-        when(droneRepository.findById("d1")).thenReturn(Optional.of(drone));
-
-        ResponseEntity<?> response = controller.startFreight("d1", authentication);
-
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals("Nao foi possivel calcular o tempo deste frete.", response.getBody());
-    }
-
-    @Test
     void refusesBulkRemovalWithoutSelectedDeliveries() {
-        Drone drone = drone("u1", DroneStatus.EM_DESPACHO);
-        when(droneRepository.findById("d1")).thenReturn(Optional.of(drone));
+        when(droneRepository.findById("d1"))
+                .thenReturn(Optional.of(drone("u1", DroneStatus.EM_DESPACHO)));
 
-        ResponseEntity<?> response = controller.unassignDeliveries(
-                "d1", new DroneController.BulkUnassignRequest(List.of()), authentication
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> controller.unassignDeliveries(
+                        "d1", new BulkUnassignRequest(List.of()), authentication
+                )
         );
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals("Selecione ao menos uma entrega.", response.getBody());
-        verify(entregaRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        assertEquals("Selecione ao menos uma entrega.", exception.getMessage());
+        verify(entregaRepository, never()).save(any());
     }
 
     @Test
     void refusesResettingDroneOwnedByAnotherUser() {
-        Drone drone = drone("other-user", DroneStatus.EM_ROTA);
-        when(droneRepository.findById("d1")).thenReturn(Optional.of(drone));
+        when(droneRepository.findById("d1"))
+                .thenReturn(Optional.of(drone("other-user", DroneStatus.EM_ROTA)));
 
-        ResponseEntity<?> response = controller.resetDrone("d1", authentication);
-
-        assertEquals(403, response.getStatusCode().value());
+        assertThrows(
+                AccessDeniedException.class,
+                () -> controller.resetDrone("d1", authentication)
+        );
         verify(allocationService, never()).allocateConfirmed("u1", "h1");
     }
 

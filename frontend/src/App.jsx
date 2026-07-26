@@ -1,21 +1,21 @@
 import React, { useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import DashboardDrones from './pages/DashboardDrones';
-import Hangars from './pages/Hangars';
-import GerenciarHangars from './pages/GerenciarHangars';
-import Drones from './pages/Drones';
-import GerenciarDrones from './pages/GerenciarDrones';
-import Modelos from './pages/Modelos';
-import Entregas from './pages/Entregas';
-import PedidosPorEstado from './pages/PedidosPorEstado';
-import GerenciarEntregas from './pages/GerenciarEntregas';
-import AppLayout from './components/AppLayout';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import Dashboard from './pages/dashboard/Dashboard';
+import DashboardDrones from './pages/dashboard/DashboardDrones';
+import PedidosPorEstado from './pages/dashboard/PedidosPorEstado';
+import Hangars from './pages/hangars/Hangars';
+import GerenciarHangars from './pages/hangars/GerenciarHangars';
+import Drones from './pages/drones/Drones';
+import GerenciarDrones from './pages/drones/GerenciarDrones';
+import Modelos from './pages/modelos/Modelos';
+import Entregas from './pages/entregas/Entregas';
+import GerenciarEntregas from './pages/entregas/GerenciarEntregas';
+import AppLayout from './components/layout/AppLayout';
 import { HangarProvider } from './context/HangarContext';
-import './App.css';
+import './styles/App.css';
 
 const ProtectedRoute = ({ children }) => {
   const { authenticated, loading } = useContext(AuthContext);
