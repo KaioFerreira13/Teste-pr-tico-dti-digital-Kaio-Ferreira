@@ -2,20 +2,27 @@ package com.dtidigital.fretesdrones.controller;
 
 import com.dtidigital.fretesdrones.dto.HangarRequest;
 import com.dtidigital.fretesdrones.dto.ModeloRequest;
+import com.dtidigital.fretesdrones.mapper.HangarMapper;
+import com.dtidigital.fretesdrones.mapper.ModeloMapper;
 import com.dtidigital.fretesdrones.model.Hangar;
 import com.dtidigital.fretesdrones.model.Modelo;
 import com.dtidigital.fretesdrones.model.User;
 import com.dtidigital.fretesdrones.repository.HangarRepository;
 import com.dtidigital.fretesdrones.repository.ModeloRepository;
 import com.dtidigital.fretesdrones.repository.UserRepository;
+import com.dtidigital.fretesdrones.security.AuthenticatedUserService;
+import com.dtidigital.fretesdrones.service.HangarService;
+import com.dtidigital.fretesdrones.service.ModeloService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -35,8 +42,14 @@ class CadastroBusinessRulesTest {
         hangarRepository = mock(HangarRepository.class);
         modeloRepository = mock(ModeloRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
-        hangarController = new HangarController(hangarRepository, userRepository);
-        modeloController = new ModeloController(modeloRepository, userRepository);
+        hangarController = new HangarController(
+                new HangarService(hangarRepository, new HangarMapper()),
+                new AuthenticatedUserService(userRepository)
+        );
+        modeloController = new ModeloController(
+                new ModeloService(modeloRepository, new ModeloMapper()),
+                new AuthenticatedUserService(userRepository)
+        );
         authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn("user@test.com");
         when(userRepository.findByEmail("user@test.com"))
@@ -48,10 +61,12 @@ class CadastroBusinessRulesTest {
         HangarRequest request = hangarRequest();
         when(hangarRepository.existsByPositionXAndPositionY(10, 20)).thenReturn(true);
 
-        ResponseEntity<?> response = hangarController.createHangar(request, authentication);
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> hangarController.createHangar(request, authentication)
+        );
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals("Ja existe um hangar nessa posicao.", response.getBody());
+        assertEquals("Ja existe um hangar nessa posicao.", exception.getMessage());
         verify(hangarRepository, never()).save(any());
     }
 
@@ -61,10 +76,12 @@ class CadastroBusinessRulesTest {
         when(hangarRepository.findById("h1")).thenReturn(Optional.of(hangar));
         when(hangarRepository.existsByPositionXAndPositionYAndIdNot(10, 20, "h1")).thenReturn(true);
 
-        ResponseEntity<?> response = hangarController.updateHangar("h1", hangarRequest(), authentication);
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> hangarController.updateHangar("h1", hangarRequest(), authentication)
+        );
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals("Ja existe um hangar nessa posicao.", response.getBody());
+        assertEquals("Ja existe um hangar nessa posicao.", exception.getMessage());
         verify(hangarRepository, never()).save(hangar);
     }
 
@@ -73,9 +90,10 @@ class CadastroBusinessRulesTest {
         Hangar hangar = Hangar.builder().id("h1").userId("other-user").build();
         when(hangarRepository.findById("h1")).thenReturn(Optional.of(hangar));
 
-        ResponseEntity<?> response = hangarController.updateHangar("h1", hangarRequest(), authentication);
-
-        assertEquals(403, response.getStatusCode().value());
+        assertThrows(
+                AccessDeniedException.class,
+                () -> hangarController.updateHangar("h1", hangarRequest(), authentication)
+        );
         verify(hangarRepository, never()).save(hangar);
     }
 
@@ -84,9 +102,10 @@ class CadastroBusinessRulesTest {
         Hangar hangar = Hangar.builder().id("h1").userId("other-user").build();
         when(hangarRepository.findById("h1")).thenReturn(Optional.of(hangar));
 
-        ResponseEntity<?> response = hangarController.deleteHangar("h1", authentication);
-
-        assertEquals(403, response.getStatusCode().value());
+        assertThrows(
+                AccessDeniedException.class,
+                () -> hangarController.deleteHangar("h1", authentication)
+        );
         verify(hangarRepository, never()).delete(hangar);
     }
 
@@ -94,9 +113,10 @@ class CadastroBusinessRulesTest {
     void returnsNotFoundForUnknownHangar() {
         when(hangarRepository.findById("missing")).thenReturn(Optional.empty());
 
-        ResponseEntity<?> response = hangarController.deleteHangar("missing", authentication);
-
-        assertEquals(404, response.getStatusCode().value());
+        assertThrows(
+                java.util.NoSuchElementException.class,
+                () -> hangarController.deleteHangar("missing", authentication)
+        );
     }
 
     @Test
@@ -104,10 +124,12 @@ class CadastroBusinessRulesTest {
         ModeloRequest request = modelRequest();
         when(modeloRepository.existsByUserIdAndNameIgnoreCase("u1", "Modelo A")).thenReturn(true);
 
-        ResponseEntity<?> response = modeloController.createModel(request, authentication);
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> modeloController.createModel(request, authentication)
+        );
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals("Voce ja possui um modelo com esse nome.", response.getBody());
+        assertEquals("Voce ja possui um modelo com esse nome.", exception.getMessage());
         verify(modeloRepository, never()).save(any());
     }
 
@@ -117,10 +139,12 @@ class CadastroBusinessRulesTest {
         when(modeloRepository.findById("m1")).thenReturn(Optional.of(model));
         when(modeloRepository.existsByUserIdAndNameIgnoreCaseAndIdNot("u1", "Modelo A", "m1")).thenReturn(true);
 
-        ResponseEntity<?> response = modeloController.updateModel("m1", modelRequest(), authentication);
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> modeloController.updateModel("m1", modelRequest(), authentication)
+        );
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals("Voce ja possui um modelo com esse nome.", response.getBody());
+        assertEquals("Voce ja possui um modelo com esse nome.", exception.getMessage());
         verify(modeloRepository, never()).save(model);
     }
 
@@ -129,9 +153,10 @@ class CadastroBusinessRulesTest {
         Modelo model = Modelo.builder().id("m1").userId("other-user").build();
         when(modeloRepository.findById("m1")).thenReturn(Optional.of(model));
 
-        ResponseEntity<?> response = modeloController.updateModel("m1", modelRequest(), authentication);
-
-        assertEquals(403, response.getStatusCode().value());
+        assertThrows(
+                AccessDeniedException.class,
+                () -> modeloController.updateModel("m1", modelRequest(), authentication)
+        );
         verify(modeloRepository, never()).save(model);
     }
 
@@ -140,9 +165,10 @@ class CadastroBusinessRulesTest {
         Modelo model = Modelo.builder().id("m1").userId("other-user").build();
         when(modeloRepository.findById("m1")).thenReturn(Optional.of(model));
 
-        ResponseEntity<?> response = modeloController.deleteModel("m1", authentication);
-
-        assertEquals(403, response.getStatusCode().value());
+        assertThrows(
+                AccessDeniedException.class,
+                () -> modeloController.deleteModel("m1", authentication)
+        );
         verify(modeloRepository, never()).delete(model);
     }
 
@@ -150,9 +176,10 @@ class CadastroBusinessRulesTest {
     void returnsNotFoundForUnknownModel() {
         when(modeloRepository.findById("missing")).thenReturn(Optional.empty());
 
-        ResponseEntity<?> response = modeloController.deleteModel("missing", authentication);
-
-        assertEquals(404, response.getStatusCode().value());
+        assertThrows(
+                java.util.NoSuchElementException.class,
+                () -> modeloController.deleteModel("missing", authentication)
+        );
     }
 
     private HangarRequest hangarRequest() {

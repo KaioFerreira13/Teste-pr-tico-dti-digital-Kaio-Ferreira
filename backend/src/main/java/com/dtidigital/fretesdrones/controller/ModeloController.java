@@ -2,14 +2,13 @@ package com.dtidigital.fretesdrones.controller;
 
 import com.dtidigital.fretesdrones.dto.ModeloRequest;
 import com.dtidigital.fretesdrones.dto.ModeloResponse;
-import com.dtidigital.fretesdrones.model.Modelo;
 import com.dtidigital.fretesdrones.model.User;
-import com.dtidigital.fretesdrones.repository.ModeloRepository;
-import com.dtidigital.fretesdrones.repository.UserRepository;
+import com.dtidigital.fretesdrones.security.AuthenticatedUserService;
+import com.dtidigital.fretesdrones.service.ModeloService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -17,96 +16,49 @@ import java.util.List;
 @RequestMapping("/api/modelos")
 public class ModeloController {
 
-    private final ModeloRepository modeloRepository;
-    private final UserRepository userRepository;
+    private final ModeloService modeloService;
+    private final AuthenticatedUserService authenticatedUserService;
 
-    public ModeloController(ModeloRepository modeloRepository, UserRepository userRepository) {
-        this.modeloRepository = modeloRepository;
-        this.userRepository = userRepository;
+    public ModeloController(
+            ModeloService modeloService,
+            AuthenticatedUserService authenticatedUserService
+    ) {
+        this.modeloService = modeloService;
+        this.authenticatedUserService = authenticatedUserService;
     }
 
     @GetMapping("/me")
     public List<ModeloResponse> getMyModels(Authentication authentication) {
-        User user = getCurrentUser(authentication);
-        return modeloRepository.findByUserId(user.getId()).stream()
-                .map(this::toResponse)
-                .toList();
+        return modeloService.findByUser(currentUser(authentication));
     }
 
     @PostMapping
-    public ResponseEntity<?> createModel(@Valid @RequestBody ModeloRequest request, Authentication authentication) {
-        User user = getCurrentUser(authentication);
-
-        if (request.getName() == null || request.getName().isBlank()) {
-            return ResponseEntity.badRequest().body("Model name is required");
-        }
-        if (request.getAutonomy() == null || request.getMaxWeight() == null || request.getAverageSpeed() == null) {
-            return ResponseEntity.badRequest().body("All model fields are required");
-        }
-        if (modeloRepository.existsByUserIdAndNameIgnoreCase(user.getId(), request.getName().trim())) {
-            return ResponseEntity.badRequest().body("Voce ja possui um modelo com esse nome.");
-        }
-
-        Modelo modelo = new Modelo(
-                request.getName().trim(),
-                request.getAutonomy(),
-                request.getMaxWeight(),
-                request.getAverageSpeed(),
-                user.getId()
-        );
-        return ResponseEntity.ok(toResponse(modeloRepository.save(modelo)));
+    public ModeloResponse createModel(
+            @Valid @RequestBody ModeloRequest request,
+            Authentication authentication
+    ) {
+        return modeloService.create(request, currentUser(authentication));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateModel(@PathVariable String id, @Valid @RequestBody ModeloRequest request, Authentication authentication) {
-        User user = getCurrentUser(authentication);
-
-        return modeloRepository.findById(id)
-                .map(modelo -> {
-                    if (!modelo.getUserId().equals(user.getId())) {
-                        return ResponseEntity.status(403).body("Voce nao pode alterar este modelo.");
-                    }
-                    if (request.getName() == null || request.getName().isBlank()) {
-                        return ResponseEntity.badRequest().body("Model name is required");
-                    }
-                    if (request.getAutonomy() == null || request.getMaxWeight() == null || request.getAverageSpeed() == null) {
-                        return ResponseEntity.badRequest().body("All model fields are required");
-                    }
-                    if (modeloRepository.existsByUserIdAndNameIgnoreCaseAndIdNot(user.getId(), request.getName().trim(), id)) {
-                        return ResponseEntity.badRequest().body("Voce ja possui um modelo com esse nome.");
-                    }
-
-                    modelo.setName(request.getName().trim());
-                    modelo.setAutonomy(request.getAutonomy());
-                    modelo.setMaxWeight(request.getMaxWeight());
-                    modelo.setAverageSpeed(request.getAverageSpeed());
-                    return ResponseEntity.ok(toResponse(modeloRepository.save(modelo)));
-                })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ModeloResponse updateModel(
+            @PathVariable String id,
+            @Valid @RequestBody ModeloRequest request,
+            Authentication authentication
+    ) {
+        return modeloService.update(id, request, currentUser(authentication));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteModel(@PathVariable String id, Authentication authentication) {
-        User user = getCurrentUser(authentication);
-
-        return modeloRepository.findById(id)
-                .map(modelo -> {
-                    if (!modelo.getUserId().equals(user.getId())) {
-                        return ResponseEntity.status(403).body("Voce nao pode excluir este modelo.");
-                    }
-                    modeloRepository.delete(modelo);
-                    return ResponseEntity.ok().build();
-                })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<Void> deleteModel(
+            @PathVariable String id,
+            Authentication authentication
+    ) {
+        modeloService.delete(id, currentUser(authentication));
+        return ResponseEntity.ok().build();
     }
 
-    private User getCurrentUser(Authentication authentication) {
-        String email = authentication.getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
-    }
-
-    private ModeloResponse toResponse(Modelo modelo) {
-        return new ModeloResponse(modelo.getId(), modelo.getName(), modelo.getAutonomy(), modelo.getMaxWeight(), modelo.getAverageSpeed());
+    private User currentUser(Authentication authentication) {
+        return authenticatedUserService.get(authentication);
     }
 }
