@@ -4,6 +4,12 @@ Sistema de gestão de fretes para uma operação logística com drones. A aplica
 permite cadastrar hangares, modelos, drones e entregas, preparar despachos,
 acompanhar rotas em um mapa cartesiano e cadastrar áreas que devem ser evitadas.
 
+## Sistema em deploy
+
+Acesse a aplicação publicada:
+
+[Abrir o Fretes Drones](https://teste-dti-kaio-ferreira.vercel.app/login)
+
 ## Funcionalidades
 
 - autenticação de usuários com JWT;
